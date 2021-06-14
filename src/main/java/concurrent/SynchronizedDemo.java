@@ -5,7 +5,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class SynchronizedDemo implements Runnable {
 
     private static int count = 0;  // ！10000 跟预期不一致
-//    private static AtomicInteger count = new AtomicInteger(0);  //10000 跟预期一致
+    //    private static AtomicInteger count = new AtomicInteger(0);  //10000 跟预期一致
+    private static Object object = new Object();
 
     public static void main(String[] args) {
         for (int i = 0; i < 10; i++) {
@@ -22,7 +23,7 @@ public class SynchronizedDemo implements Runnable {
 
 
     public void run() {
-        synchronized (SynchronizedDemo.class){   //锁住类对象
+        synchronized (object){   //锁住类对象
             for (int i = 0; i < 10000; i++) {
                 count++;
 //            count.getAndIncrement();

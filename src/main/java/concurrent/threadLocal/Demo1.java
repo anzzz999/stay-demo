@@ -4,6 +4,8 @@ package concurrent.threadLocal;
 public class Demo1 {
     private static ThreadLocal<Student> local = new ThreadLocal<Student>();
     public static void main(String[] args) throws InterruptedException {
+
+        local.set(new Student(100));
         new Thread(){				//A线程
             @Override
             public void run() {

@@ -14,11 +14,11 @@ import rocketMQ.Constant;
  */
 public class SyncProducer {
     public static void main(String[] args) throws Exception {
-        DefaultMQProducer producer = new DefaultMQProducer("an_zzz_firstMQ_group_name");
+        DefaultMQProducer producer = new DefaultMQProducer("yueanju");
         producer.setNamesrvAddr(Constant.NAMESRV_ADDR);
         producer.start();
         for (int i = 0; i < 100; i++) {
-            Message msg = new Message("TopicTest","TagA",("Hello RocketMQ "+ i).getBytes(RemotingHelper.DEFAULT_CHARSET));
+            Message msg = new Message("yueanju_topic","Tag"+ i%5,("Hello RocketMQ "+ i).getBytes(RemotingHelper.DEFAULT_CHARSET));
             SendResult sendResult = producer.send(msg);
 
             System.out.printf("%s%n", sendResult);

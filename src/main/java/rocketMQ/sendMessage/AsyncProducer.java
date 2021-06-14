@@ -19,17 +19,17 @@ import java.util.concurrent.TimeUnit;
 public class AsyncProducer {
     public static void main(String[] args) throws Exception {
         //实例化消息生成者
-        DefaultMQProducer producer = new DefaultMQProducer("an_zzz_firstMQ_group_name");
+        DefaultMQProducer producer = new DefaultMQProducer("yueanju");
         producer.setNamesrvAddr(Constant.NAMESRV_ADDR);
         producer.start();
         producer.setRetryTimesWhenSendAsyncFailed(0);
 
-        int messageCount = 100;
+        int messageCount = 20;
         final CountDownLatch2  countDownLatch = new CountDownLatch2(messageCount);
         for (int i = 0; i < messageCount; i++) {
             final int index =i;
             // 创建消息，并指定Topic，Tag和消息体
-            Message msg = new Message("TopicTest","TagA",("Hello RocketMQ "+ i).getBytes(RemotingHelper.DEFAULT_CHARSET));
+            Message msg = new Message("yueanju_topic","Tag"+ i%5,("Hello RocketMQ "+ (i+1)).getBytes(RemotingHelper.DEFAULT_CHARSET));
             // SendCallback接收异步返回结果的回调
             producer.send(msg, new SendCallback() {
                 @Override

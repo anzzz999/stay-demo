@@ -1,0 +1,720 @@
+1.格式化日期
+ jp.dateFormat(new Date(),'yyyy-MM-dd')
+ 
+ 2.下拉框给对应选择框赋值
+ $("#repair_type").find('option[value='+repair_type+']').attr("selected",true);
+ 获取值
+ $("#selectName").find("option:selected").val()；
+ 
+ 3.自动生成编号
+ .java
+	model.addAttribute("no",getNumber());
+ 
+	public String getNumber(){
+			return  commonUtils.getNo("sequence_num","sealedBorrowingDocuments","RSJH");
+		}
+	
+ .html
+	$("input[name='sequence_num']").val("${no!}");
+	
+4.改为年月，而不是年月日输入
+	onfocus="WdatePicker()"--->WdatePicker({dateFmt:'yyyy-MM'})
+	
+5.Object.defineProperty的用法（示例：watchOpName）
+		var expire_date = document.getElementById("expire_date");
+		var expire_date_val=expire_date.value;
+		Object.defineProperty(expire_date,"value",{
+			configurable: true,
+			set:function (a) {
+				$("input[name='expire_date']").attr("value", a);
+				expire_date_val = a;
+				jp.alert("请重新上传附件！");
+				$("input[name='contract_elec_info']").attr("value", "");
+				$("#contract_elec_info").val("");
+			},
+			get() {
+				return expire_date_val;
+			}
+		});
+	
+														var opId = document.getElementById("operatingIncomeRegisterDetailList0_incomeContractAdminId").value;
+														//监听对象，一定要用document去获取到这个对象
+														var opDom = document.getElementById("operatingIncomeRegisterDetailList0_incomeContractAdminId");
+													
+														//param1:监听的对象，param2:监听的属性,param3:configurable 可以被修改,重写get set方法
+														Object.defineProperty(opDom, "value", {
+															configurable: true,
+															//在set方法里面，首先要还原原本对象的赋值操作,然后将改变的值赋值给一个临时变量,此处是opId
+															set: function (a) {
+																var ids = a.split(",");
+																//还原赋值过程
+																$("#operatingIncomeRegisterDetailList0_incomeContractAdminId").attr("value", ids[0]);
+																//赋值给临时变量，给get方法使用
+																opId = ids[0];
+																//以下是附加操作
+																var msg = jp.loading("加载数据中...")
+																jp.post(
+																	ctx + "/incomecontractadmin/incomeContractAdmin/getDataByIds",
+																	{
+																		ids: a
+																	},
+																	function (data) {
+																		jp.close(msg);
+																		if (data.success) {
+																			var result = data.body.incomeContractAdmin;
+													
+																			//判断多个合同是否为同一个项目编号
+																			for (var i= 1; i < result.length; i++) {
+													
+																			if ( result[0].project_id!=result[i].project_id){
+																				jp.alert("选中的合同中，项目编号不相同!");
+																				return;
+																			}
+																			}
+													
+													
+																			$("input[name='project_id']").val(result[0].project_id);//项目编号
+													
+																			$("input[name='projectManagement.project_name']").val(result[0].projectManagement.project_name);//项目名称
+																			$("input[name='projectManagement.id']").val(result[0].projectManagement.id);//项目名称id
+													
+																			$("input[name='department_id.name']").val(result[0].department_id.name);//部门名称
+																			$("input[name='department_id.id']").val(result[0].department_id.id);//部门id
+													
+																			$("input[name='Customer.customer_name_all']").val(result[0].customer.customer_name_all);//客户单位全称
+																			$("input[name='Customer.id']").val(result[0].customer.id);//客户单位id
+													
+																			$("input[name='operation_mode']").val(result[0].management_model);//经营模式
+													
+													
+																			$("#operatingIncomeRegisterDetailList0_incomeContractAdminName").val(result[0].order_number);//合同名称
+																			for (var j = 0; j < result.length; j++) {
+																				if (j >= 10) {
+																					addRow('#operatingIncomeRegisterDetailList',  operatingIncomeRegisterDetailRowIdx,  operatingIncomeRegisterDetailTpl);
+																					operatingIncomeRegisterDetailRowIdx =  operatingIncomeRegisterDetailRowIdx + 1;
+																				}
+																				if (j != 0) {
+																					$("#operatingIncomeRegisterDetailList" + j + "_incomeContractAdminName").val(result[j].order_number);//合同名称
+																					$("#operatingIncomeRegisterDetailList" + j + "_incomeContractAdminId").val(result[j].id);//id
+																				}
+																				$("#operatingIncomeRegisterDetailList" + j + "_customer_project_id").val(result[j].customer_project_id);//客户项目号
+																				$("#operatingIncomeRegisterDetailList" + j + "_outside_contract_id").val(result[j].outside_contract_id);//外部合同编号
+																				$("#operatingIncomeRegisterDetailList" + j + "_contract_money_all").val(result[j].local_amount_no);//合同金额（不含税）
+													
+													
+																			};
+													
+																		} else {
+																			$.toast(data.msg);
+																		}
+																	}
+																);
+															}, get: function () {
+																return opId;
+															}
+														});
+														
+		
+		.val()设置的是input的value属性，input是HTMLInputElement的实例，value是通过setter方法定义的，当被赋值时，就会把值写到input里面；
+		.attr("value","")而改变value属性的方法，实际上操作的是dom的value属性，会触发浏览器的repaint，更新input的值。
+		
+6.合并主分支
+	checkout master、更新master、切换回dev、master的merge to current
+	
+7.数据库字段为空转换	
+        <if test="_databaseId == 'mysql'">
+            IFNULL(a.stop,"否") AS  "stop",
+        </if>
+        <if test="_databaseId == 'oracle'">
+            NVL(a.stop,"否") AS  "stop",
+        </if>
+        <if test="_databaseId == 'mssql'">
+            ISNULL(a.stop,"否") AS  "stop",
+        </if>
+		
+8.mysql处理日期
+	将日期变为 年月 格式
+	select DATE_FORMAT(datetime,'%Y - %m') from XXX
+		
+9. case when  else end 
+		简单函数
+		CASE [col_name] WHEN [value1] THEN [result1]…ELSE [default] END： 枚举这个字段所有可能的值*
+		搜索函数
+		CASE WHEN [expr] THEN [result1]…ELSE [default] END：搜索函数可以写判断，并且搜索函数只会返回第一个符合条件的值，其他case被忽略
+		
+		CASE 
+		WHEN (cv.invoice_tax_money_all - cir.tax_money_all)<0 THEN '多票待处理'
+		WHEN (cv.invoice_tax_money_all - cir.tax_money_all)>0 THEN '少票，待交'
+		WHEN ((cv.invoice_tax_money_all - cir.tax_money_all)=0 AND	(ABS(cir.money - cv.invoice_money)<=10)) THEN '已交票'
+		ELSE '交票异常'
+		end
+		as '对公成本发票提交预警' 
+		
+
+10.前端的表格寻找数据
+		databaseLength = document.getElementById("costInvoicingNoticeDetailList").children.length;
+		for(var i=0;i<databaseLength;i++){
+			var invoice_tax_rate = Number($("#costInvoicingNoticeDetailList"+i+"_invoice_tax_rate").val());					
+		}
+		
+11.layui常用方法
+//批量编辑表单页面
+		function batchEdit(){
+			var ids= getIdSelections();
+			layer.open({
+				type: 2,
+				title: "批量编辑站点信息",
+				shadeClose: true,
+				shade: 0.8,
+				area: ['750px', '45%'],
+				content: ['${ctx}/sitemanagement/siteManagement/batchEdit?ids='+ids, 'no'], //no，关闭iframe滚动条
+				btn:['批量修改'],
+				yes:function (index, layero) {
+					var msg = jp.loading("操作中....");
+					var iframeWin = window[layero.find('iframe')[0]['name']]; //得到iframe页的窗口对象，执行iframe页的方法：
+					var formData=iframeWin.getFormData(); //序列化表单
+					console.log("ids="+ids);
+					console.log("data="+formData);
+					jp.post(
+						'${ctx}/sitemanagement/siteManagement/batchEditData/'+ids,
+						formData,
+						function (data) {
+							if (data.success) {
+								jp.close(msg);
+								jp.info(data.msg);
+								layer.close(index);
+								window.location.reload();
+							} else {
+								jp.close(msg);
+								$.toast(data.msg);
+							}
+						}
+					);
+				}
+			});
+		
+		}
+		
+12.后台接收id  data
+			/**
+			* 批量修改数据
+			*/
+		
+			@ResponseBody
+			@RequiresPermissions("sitemanagement:siteManagement:view")
+			@PostMapping(value = "/batchEditData/{ids}")
+		//	@RequestMapping(value = "batchEditData")
+			public AjaxJson batchEditData(@PathVariable String ids,SiteManagement data) {
+				AjaxJson j = new AjaxJson();
+				try {
+					//里面有多个id，逗号分隔
+					String[] id = ids.split(",");
+					for (int i = 0; i < id.length; i++) {
+						SiteManagement siteManagement = siteManagementService.get(id[i]);//获取站点数据
+		
+						siteManagement.setOrder_id(data.getOrder_id());//订单编号
+						siteManagement.setIncomeContractAdmin(new IncomeContractAdmin(data.getIncomeContractAdmin().getId()));//订单id
+						siteManagement.setStation_type(data.getStation_type());//站点类型
+						siteManagement.setProfession_type(data.getProfession_type());//专业类型
+						siteManagement.setStation_content(data.getStation_content());//站点工作内容
+						siteManagement.setWorker_caption(data.getWorker_caption());//施工队长
+		
+						siteManagementService.save(siteManagement);//更新站点数据
+					}
+					j.setMsg("批量修改成功");
+				}catch (Exception e) {
+					j.setSuccess(false);
+					j.setMsg( "批量修改失败！失败信息："+e.getMessage());
+				}
+				return j;
+			}
+
+
+13.新增页面输入框（input）不要设置 disabled 设置了之后不会传值到后端去
+
+14.税率计算 模板 calc_single_site.js
+
+15.mysql死锁解决方案  https://blog.csdn.net/java__project/article/details/100137526
+
+16.jp.ajaxForm:function(id, succFuc, beforeSubmit){}
+
+17. 子表 在开发平台改完 需要重新生成 主表 代码
+
+18.BigDecimal 金额类型判断为“0”
+
+	java中对bigdimical比较大小一般用的是bigdemical的compareTo方法
+	
+	int a = bigdemical.compareTo(bigdemical2)
+	a = -1,表示bigdemical小于bigdemical2；
+	a = 0,表示bigdemical等于bigdemical2；
+	a = 1,表示bigdemical大于bigdemical2；
+	
+	具体业务代码
+	
+	if(sysPartner.getCurrentAdvanceMoney().compareTo(new BigDecimal("0.00"))==0 ) {
+		msg="此用户当前预付款为0";
+	}
+ 
+19.抛出异常
+throw new RuntimeException("选中的项目中，存在项目累计开票含税金额不为0");
+
+20.默认日期和人
+		$("input[name='invoice_date']").val(jp.dateFormat(new Date(),'yyyy-MM-dd'));//开票日期
+		$("input[name='invoice_person']").val('${invoice_person!}');//开票人
+		
+21.后端查字典
+		siteManagement.setStation_state(DictUtils.getDictLabel(siteManagement.getStation_state(),"station_status",""));
+
+22.集成项目编号模糊搜索
+	<link href="${ctxStatic}/common/js/input/input.css" rel="stylesheet" />
+	<script language="javascript" type="text/javascript" src="${ctxStatic}/common/js/input/input.js"></script>
+	<script language="javascript" type="text/javascript" src="${ctxStatic}/common/js/getProjectByProjectId.js"></script>
+	
+	<div class="auto hidden" id="project_ids"></div>
+
+23.做完后，得多检查，比如改完后存单
+
+
+
+
+
+    @PostMapping()
+    public ResultBean saveGroupGuideAllocation(@RequestBody GroupGuideAllocation groupGuideAllocation){
+        groupGuideAllocationService.save(groupGuideAllocation);
+        String key = "1";
+        HashMap map = new HashMap<String,String>();
+        map.put("key",key);
+        return ResultHandler.ok(map);
+    }
+	
+	
+			<selectKey keyColumn="id" keyProperty="id" resultType="String" order="AFTER">
+			select last_insert_id()
+		</selectKey>
+		
+		
+
+	
+	
+	
+    /**
+     * 保存数据 ，返回Id
+     * @param groupGuideAllocation
+     */
+    String saveReturnId(GroupGuideAllocation groupGuideAllocation);
+	
+	
+	
+    @Autowired
+    GroupGuideAllocationMapper groupGuideAllocationMapper;
+	
+    @Override
+    @Transactional
+    public String saveReturnId(GroupGuideAllocation groupGuideAllocation) {
+        String s =UUID.randomUUID().toString();
+        groupGuideAllocation.setId(s);
+        groupGuideAllocationMapper.insertEntity(groupGuideAllocation);
+        return s;
+    }
+
+
+    /**
+     * 保存数据 ，返回Id
+     * @param groupGuideAllocation
+     */
+    String saveReturnId(GroupGuideAllocation groupGuideAllocation);
+	
+	
+	
+	<!--保存数据 ，返回Id-->
+
+	<insert id="saveReturnId">
+		INSERT INTO GroupGuideAllocation(
+			id,
+			allocation_id,
+			depart_group_code,
+			group_name,
+			depart_group_date,
+			produce_date,
+			group_guide_department,
+			group_guide,
+			group_guide_phone,
+			produce_name,
+			check_name,
+			create_by,
+			create_date,
+			update_by,
+			update_date,
+			remarks,
+			del_flag
+		) VALUES (
+            #{id},
+            #{allocationId},
+            #{departGroupCode},
+            #{groupName},
+            #{departGroupDate},
+            #{produceDate},
+            #{groupGuideDepartment},
+            #{groupGuide},
+            #{groupGuidePhone},
+            #{produceName},
+            #{checkName},
+            #{createBy.id},
+            #{createDate},
+            #{updateBy.id},
+            #{updateDate},
+            #{remarks},
+            #{delFlag}
+		)
+	</insert>
+	
+	
+	
+	
+	,
+  created() {
+    this.allData = this.$route.query.data;
+    this.allDetailData = this.$route.query.detailData;
+  },
+  data() {
+    return {
+      allData: {},
+      allDetailData: []
+    };
+  }
+  
+24.		
+		import { getRandomBill } from '@/utils/date'  //导入
+  
+        let bill = getRandomBill("TK"); 
+        this.formItem.produceName = this.$store.state.user.name // 制单人
+        this.formItem.bill = bill// 单据号
+		
+25.数据库批量更新
+	<!--根据id更新团导-->
+	<update id="updateGuideByIds">
+		UPDATE DepartGroupDetail
+		SET groupGuide =
+		<foreach collection="list" item="item" index="index"
+				 separator=" " open="case id" close="end">
+			WHEN #{item.id} THEN #{item.groupGuide.id}
+		</foreach>
+		WHERE id in (
+		<foreach collection="list" item="item" index="index"
+				 separator=",">
+			#{item.id}
+		</foreach>
+		)
+	</update>		
+	
+26.vue根目录@
+		import dataName from '@/views/modules/departgroup/departGroup/js/dataName'//参照新增处
+		import dataDetailName from '@/views/modules/departgroup/departGroup/js/dataDetailName'//参照新增处
+
+		
+		
+											import dataName from '../../groupguideallocation/groupGuideAllocation/js/dataName'
+											import dataDetailName from '../../groupguideallocation/groupGuideAllocation/js/dataDetailName'
+
+27.BigDecimal 判断大于小于
+
+		BigDecimal a = new BigDecimal (101);
+		BigDecimal b = new BigDecimal (111);
+		 
+		//使用compareTo方法比较
+		//注意：a、b均不能为null，否则会报空指针
+		if(a.compareTo(b) == -1){
+		    System.out.println("a小于b");
+		}
+		 
+		if(a.compareTo(b) == 0){
+		    System.out.println("a等于b");
+		}
+		 
+		if(a.compareTo(b) == 1){
+		    System.out.println("a大于b");
+		}
+		 
+		if(a.compareTo(b) > -1){
+		    System.out.println("a大于等于b");
+		}
+		 
+		if(a.compareTo(b) < 1){
+		    System.out.println("a小于等于b");
+		}
+
+		//加法
+		bignum3 =  bignum1.add(bignum2); 	 
+		System.out.println("和 是：" + bignum3);
+		
+		//减法
+		bignum3 = bignum1.subtract(bignum2);
+		System.out.println("差  是：" + bignum3);
+		
+		//乘法
+		bignum3 = bignum1.multiply(bignum2);
+		System.out.println("积  是：" + bignum3);
+		
+		//除法
+		bignum3 = bignum1.divide(bignum2);
+		System.out.println("商  是：" + bignum3);
+
+28.ajax异步请求不等待
+		async:false
+		
+29.mysql处理日期
+	DATE_FORMAT(incomeapply.apply_date,'%Y-%m-%d')  格式化为 2020-02-02
+	当前日期获取mysql的函数是SYSDATE()
+	DATEDIFF(expr,expr2) 返回起始时来间 expr和结束时间expr2之间的天数
+	
+30.mysql 百分率 百分数
+  CONCAT(FORMAT(IFNULL(
+    a.tax / a.local_amount_no,
+    0
+  )*100,1),"%") AS "税率"
+  
+31.BigDecimalUtils
+public class BigDecimalUtils {
+
+	//判断是否为0
+    public static BigDecimal checkBigDecimalZero(BigDecimal bigDecimal){
+        if(bigDecimal != null &&bigDecimal.compareTo(BigDecimal.ZERO)!=0){
+            return bigDecimal;
+        }else {
+            return BigDecimal.ZERO;
+        }
+    }
+}
+
+32.stream 过滤得出主键 
+//主键数组
+            List<String> ids = departGroupPersonInfos.stream().map(
+                    item -> item.getId()).collect(Collectors.toList());
+					
+					
+					
+					
+33.Linux部署命令
+	history										历史
+	lsof -i|grep 8004							查看端口
+	netstat -apn | grep 8884					查看端口
+	kill XXXX 									杀进程
+	sudo /usr/local/nginx/sbin/nginx			nginx启动
+	./nginx -s reload							nginx重启
+	nohup java -jar api-0.2.1-SNAPSHOT.jar &    后台部署
+	
+	
+	
+	<build>
+    <plugins>
+        <plugin>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-maven-plugin</artifactId>
+        </plugin>
+    </plugins>
+</build>
+
+	
+34.前端打包
+	npm run build:prod
+35.获取多行数据
+	this.$refs.vxe.getSelectRecords().forEach(row => {
+	            const id = row.id
+	            deleteIds.push(id)
+	          })
+36.java内存虚拟机调试
+ jconsole
+ 
+37.grid子表带出
+							 edit: ({row, column, rowIndex}) => {
+              return [
+                <ec-grid-select v-model={ row.driver }
+                              object={ row } fieldName="driver"
+                              title="司机"
+                              url="/api/v1/driverinfo/driverInfo/data"
+                              fieldKeys="name|contactPhone"
+                              fieldLabels="司机|联系电话"
+                              searchKeys="name|contactPhone"
+                              searchLabels="司机|联系电话" 
+                              bringOut={true}
+                              detaildata= {this.formItem.groupGuideAllocationDetailList}
+                               column = {rowIndex}
+                              key1 = "driver"
+                              removeData= {["code"]} />
+              ]
+            }
+			
+38. 限制为数字
+        <el-form-item
+          label="购买预算"
+          prop="budget"
+          :rules="[
+      { required: true, message: '购买预算不能为空'},
+      { type: 'number', message: '购买预算必须为数字值'}
+    ]"
+        >
+          <el-input type="number" v-model.number="formItem.budget" autocomplete="off"></el-input>
+        </el-form-item>
+		
+39.grid主表带出XX不带出XX
+
+		ec中：
+        <ec-grid-select v-model="formItem.customer"
+                          title="客户名称"
+                          url="/api/v1/customerintentioninfo/customerIntentionInfo/data"
+                          fieldKeys="name|code"
+                          fieldLabels="客户名称|客户编码"
+                          searchKeys="name|code"
+                          searchLabels="客户名称|客户编码"
+                          :bringOut=true
+                          :formData="formItem"
+                          :removeData="removeData"/>
+						  
+		dada中：
+		   removeData:['merchantsManager'],
+		
+40.获取合伙人
+            //获取用户信息
+            SysrUserAlone sysrUserAlone = sysrUserAloneService.get(MallSecurityUtil.userId());
+			或者
+			String code = MallSecurityUtil.getMallPrincipal().getSysrUserAlone().getCode();    
+			//获取合伙人			
+            Partner partner = partnerService.findUniqueByProperty("code", sysrUserAlone.getCode());
+		
+41.grid过滤
+		:filterRow="merchantsCostParams"
+		
+		merchantsCostParams:{isAccount:'1'},
+		
+42. code 代码
+	400-请求无效  服务器无法理解用户的请求
+	403-禁止访问  服务器拒绝了你的地址请求
+	405-资源被禁止
+	406：HTTP协议状态码的一种，表示无法使用请求的内容特性来响应请求的网页。说白了就是后台的返回结果前台无法解析就报406错误。
+	413 Request Entiry Too large	上传文件失败，报上面的错：请求实体太大。
+	502 Bad Gateway即在服务器以代理服务器或网关的形式工作时，收到从上游服务器到达的执行请求的非法响应（在后端服务器未启动完成时发送请求会遇到）
+	503 Server Unavailable：表示服务器暂时处于超负载或正在进行停机维护，无法处理请求；
+	504 代表网关超时 （Gateway timeout）
+
+43. 手动修改字段 前端 后端 数据库	
+
+44. mybatis ==> foreach
+		id in (
+				<foreach collection="ids" item="id" index="index"
+						separator=",">
+					#{id}
+				</foreach>
+				)
+<update id="updateByIds">
+		update sysr_notice_detail
+		<trim prefix="set" suffixOverrides=",">
+			<if test="entity.readStatus != null and entity.readStatus != ''">
+				 read_status = #{entity.readStatus},
+			</if>
+		</trim>
+		where id in
+		 (
+		<foreach collection="ids" item="id" index="index"
+				 separator=",">
+			#{id}
+		</foreach>
+		)
+	</update>
+
+
+45.加载 master数据库
+        try {
+            DynamicDataSourceContextHolder.push("master");//加载 master数据库
+            sysrUserAloneService.saveUser(sysrUserAlone);
+        } finally {
+            DynamicDataSourceContextHolder.poll();
+        }
+		
+		
+46.	凡是function()里的this，都是指向window 
+
+	问题: 箭头函数中的this是如何查找的了?
+	答案: 向外层作用域中, 一层层查找this, 直到有this的定义.
+	
+47.
+    /**
+     * 使用泛型+反射设置表单流程状态
+     */
+    public Page<T> getFormStatus(Page<T> page){
+        page.getList().stream().forEach(o->{
+            try {
+                Field procInsId = o.getClass().getDeclaredField("procInsId");
+                procInsId.setAccessible(true);
+                Field content = o.getClass().getSuperclass().getDeclaredField("content");
+                content.setAccessible(true);
+                if(procInsId.get(o)!=null){
+                    content.set(o,actTaskService.queryProcessState(procInsId.get(o).toString()));
+                    return;
+                }
+                content.set(o,"尚未发起流程");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+        return page;
+    }
+	
+	
+48.断言
+
+import com.baomidou.mybatisplus.core.toolkit.Assert;
+
+Assert.notNull(guests,"系统没找到该客人信息");
+
+判断空值后的 系统说明
+
+
+	
+	49.数据库查询日期
+			yyyy-MM-dd HH:mm:ss的日期 查询当日数据可用如下方法：
+			AND a.returnTime  like  concat(DATE_FORMAT(#{entity.returnTime},'%Y-%m-%d'),"%")
+			
+	50.Vue.$set   this.$set
+	调用方法：Vue.set( target, key, value )
+	target：要更改的数据源(可以是对象或者数组)
+	key：要更改的具体数据
+	value ：重新赋的值
+	this.$set(this.formItem,"totalPeople",this.allDetailData.length)
+	
+51.数据库排序 按名字排序
+	order by CONVERT( a.name USING gbk ) COLLATE gbk_chinese_ci ASC
+	
+52.快速开发平台
+后端：/data/workspace/yueanju/api
+前端：/data/workspace/yueanju/admin
+数据库log: /root/gencode-plus-docker/logs/ecip-codegen-plus
+
+悦安居
+120.24.22.59
+root
+ABCabc123
+
+53.get set 报错
+解决方法： idea  Invalidate cache/Restart...
+
+54.增加按钮权限
+ ECIP  
+ 系统参数 -> 资源管理 
+ 角色权限 -> 角色管理
+
+55.
+悦安居  dev为代码分支 ，real为开发分支
+乐窝	master为代码分支，dev为开发分支
+  直接跑开发分支，避免不必要的问题
+
+56.mybatis动态SQL之update 去掉最后一个逗号trim方法 
+<trim prefix="set" suffixOverrides=",">
+  <if test="srcId!=null">SRC_ID=#{srcId},</if>
+ </trim>
+
+57.
+	@RequestParam(required = false,defaultValue = "false")  请求值非必传，默认为 false
+
+		//将idList变成逗号分隔的id
+		String ids= userList.stream().map(User::getId).collect(Collectors.joining(","));
+        String userName = userList.stream().map(User::getUserName).collect(Collectors.joining(","));

@@ -1,0 +1,175 @@
+
+
+String
+
+set key value
+setnx key  value  key不存在才可用 相当于add操作
+set key value xx  key存在 相当于update操作
+
+批量操作
+mget  k1 k2 k3
+mset  k1 v1 k2 v2 k3 v3
+
+getset key newvalue  设置新值返回旧值
+append key value  追加值
+strlen key 返回字符串的长度（注意中文）
+
+incrbyfloat key 3.5 增加key对应的值3.5
+
+getrange key start end 获取字符串指定下标所有的值
+
+setrange key index value 设置指定下标的对应的值
+
+Hash 
+哈希命令都以h开头
+hget key field  
+hset key field value
+hdel key field 
+hgetall key 获取所有
+ hexists key field   判断hash key 是否有field  复杂度o(1)
+ hlen key 获取key的filed数量 复杂度o(1)
+ 批量  o(n)
+ hmset key field value field value
+ hmget key field field
+ 
+ list(列表) 有序 可重复 左右两边弹入弹出
+ 增 
+ lpush/rpush key value1 value2 value3..
+ linsert key before|after value newvalue 在list指定的值前后插入newvalue
+ 删
+ lpop/rpop key 
+ lrem key count value 
+ （count>0 从左到右 删除 count个 value  count<0 从右到左 count=0 全删）
+ ltrim key start end 按索引范围修剪列表 
+查 
+ lrange key start end(包含end) 获取列表指定索引范围所有item
+ lindex key index
+ llen key 获取列表的长度
+ 改
+ lset key index newvalue  设置列表指定索引值为 newvalue
+ 
+ LRUSH + LPOP =Stack
+ LRUSH + RPOP = Queue
+ LPUSH + LTRIM = Capped Collection 控制列表大小
+ LPUSH + BRPOP =Message Queue
+ 
+ SET(集合，特点：无序，无重复，集合间操作)
+ sadd  key element1 element2 增加 
+ srem  key element1 删除
+ scard key  计算几个大小
+ sismember key value 判断it是否在集合中
+ srandmember key count  从集合中随机挑count个元素（不会破坏集合数据）
+ spop key  从集合中随机弹出一个元素
+ smembers key 返回集合中的所有元素（无序，小心使用）
+ 
+集合间
+sdiff key1 key2 差集
+sinter  key1 key2 交集
+sunion key1 key2 并集
++ store destkey  将结果保存在 destkey 中
+tips
+SADD 标签
+spop/srandmember 随机数应用
+sadd + sinter 社交相关应用 共同关注的人
+
+zset（有序集合）
+key score value
+user  1   an_zzz
+zadd key score element (可以多对) 增加 o(n)
+zrem key element(可以多个) 删除 o(1)
+zscore key element 返回元素的分数 (可以多对)
+zincrby key increScore element  增加或减少元素分数 o(1)
+zcard key 返回元素个数
+zrank 获取排名 从小到大，从0开始
+zrange key start end [WITHSCORES] 返回指定索引范围内的升序元素[分值]o(long(n)+m)
+zrangebyscore key minScore maxScore [WITHSCORES]  返回指定分数范围内的升序元素[分值]
+zcount key minScore maxScore 返回指定分数范围内的元素个数
+zremrangebyrank key start end 删除指定排名内的升序元素
+zremrangebyscore key minScore maxScore 删除指定分数内的升序元素
+
+
+慢查询参数
+首先来关注下慢日志分析对应的两个参数：
+
+1、slowlog-log-slower-than：预设阀值，即记录超过多少时间的记录，默认为10000微秒，即10毫秒。可设置为1000
+
+2、slowlog-max-len：记录慢查询的条数，默认为128条，当超过设置的条数时最早进入队列的将被移除。线上建议增大数值，如：1000，这样可减少队列移除的频率。
+
+config set 设置 
+
+
+持久化方式
+快照 ==》 MySQL dump ,redis RDB
+写日志 ==》 MySQL binlog , redis AOF
+
+RDB   
+  save(同步)   文件策略：存在老的RDB文件，新替换老 复杂度：O(n)        阻塞？：是（阻塞客户端命令）
+  bgsave(异步) 文件策略：与save相同                复杂度：与save相同  阻塞？：是（阻塞发生在fork,fork消耗内存）
+  自动生成RDB （自动配置满足任一条件就会执行）
+  触发机制：主从复制 shutdown
+   RDB   缺点：耗时、耗性能  不可控、丢失数据
+   
+AOF
+  always             不丢失数据    				IO开销大
+  everysec（每秒）	 每秒一次fsync，保护磁盘	丢一秒数据
+  no （OS决定fsync）  不用管					不可控
+
+主从复制
+指令        无需重启，但不便于管理
+slaveof ip:端口
+slaveof no one
+配置文件   统一配置，需要重启
+slaveof ip port
+slaveof-read-only yes  只读
+
+规避全量复制
+1.第一次全量复制
+2.节点运行ID不匹配
+3.复制缓冲区不足 网络中断等。。
+
+规避复制风暴
+
+sentinel
+
+三个定时任务
+1.每10秒info 
+ 发现slave节点  确认主从关系
+2.每2秒发布订阅 
+ 每2秒每个sentinel通过master节点的channel交换信息（pub/sub）
+3.心态检测
+ 每1秒每个sentinel对其他sentinel和redis执行ping
+ 
+ 主观下线：每个sentinel节点对redis节点失败的“偏见”
+ 客观下线：所有sentinel节点对redis节点失败“达成共识”（超过quorum个统一）
+ 
+ 数据分布概念 
+  1.节点取余分区
+  2.一致性哈希分区
+  3.虚拟槽哈希分布
+  
+  redis集群
+  
+  准备节点 --> meet操作 --> 分配槽 --> 配置主从
+  
+  集群伸缩 = 槽和数据在节点之间的移动
+  
+  加入集群的作用
+  1.为他迁移槽和数据实现扩容
+  2.作为从节点负责故障转移
+  
+  收缩集群
+  1.下线迁移槽
+  2.忘记节点
+  3.关闭节点
+  
+  客户端路由
+  moved 和 ask
+  两者都是客户端重定向
+  moved:槽已经确定迁移
+  ask:槽还在迁移中
+  
+  数据倾斜
+  1.节点和槽分配不均匀
+  2.不同槽对应键值数差异较大
+  3.包含bigkey
+  4.内存相关配置不一致

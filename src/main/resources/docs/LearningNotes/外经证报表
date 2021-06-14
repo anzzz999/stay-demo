@@ -1,0 +1,88 @@
+
+1.外经证核销管控表
+SELECT
+	a.apply_id AS "apply_id",
+	department_id.`name`	"部门",
+	projectManagement.project_id ,
+	projectManagement.project_name ,
+	customer.customer_name_all AS "customer_id",
+	a.management_model AS "management_model",
+	apply_user.NAME  AS "apply_user_id",
+	a.apply_date AS "apply_date",
+	a.remarks AS "remarks",
+	d.contract_id,
+	incomeContractAdmin.contract_name,
+	d.contract_money,
+	d.oc_money,
+	d.oc_project_street,
+	d.user_person,
+	d.oc_id,
+	d.issue_date,
+	d.oc_start_date,
+	d.oc_end_date,
+	outerchannelcheckdetail.check_date "核销日期",
+	IF(d.is_verification=1,'是','否') AS 'is_verification',
+	d.open_days,
+	DATEDIFF(CURDATE(),date_add(d.oc_start_date, interval -1 day)) '核销预警',
+	if(outerchannelcheckdetail.check_date IS NULL && date_add(d.oc_start_date, interval 60 day)>CURDATE(),'核销异常','') '外经证状态',
+
+	IF(outerchannelcheckdetail.check_date IS NULL,	
+	IF( d.oc_start_date IS NOT NULL ,
+			'已开具未核销',
+			'已申请未开具'
+		),
+	'已核销'
+	
+	)	'核销预警时间',
+date_add(d.oc_start_date, interval 59 day) '时间'
+FROM
+	OuterChannelApply a
+LEFT JOIN OuterChannelApplyDetail d ON d.pid = a.id
+LEFT JOIN sys_office department_id ON department_id.id = d.department_id
+LEFT JOIN ProjectManagement projectManagement ON projectManagement.id = a.project_name
+LEFT JOIN sys_user apply_user ON apply_user.id = a.apply_user
+LEFT JOIN CustomerTable customer ON customer.id = a.customer
+LEFT JOIN OuterChannelCheckDetail outerchannelcheckdetail ON  outerchannelcheckdetail.oc_id= d.oc_id
+LEFT JOIN IncomeContractAdmin incomeContractAdmin ON incomeContractAdmin.id = d.contract_name
+
+
+
+
+2.外经证申请与收入票申请对比
+SELECT
+	a.apply_id AS "apply_id",
+	department_id.`name`	"部门",
+	projectManagement.project_id ,
+	projectManagement.project_name ,
+	customer.customer_name_all AS "customer_id",
+	a.management_model AS "management_model",
+	apply_user.NAME  AS "apply_user_id",
+	a.apply_date AS "apply_date",
+	a.remarks AS "remarks",
+	d.contract_id,
+	incomeContractAdmin.contract_name,
+	d.contract_money,
+	d.oc_money,
+	d.oc_project_street,
+	d.user_person,
+	d.oc_id,
+	d.issue_date,
+	d.oc_start_date,
+	d.oc_end_date,
+	incomeapply.incomeinvoice_apply_id,
+	incomeapply.apply_date '收入票开票申请日期',
+	IFNULL(incomeapply.local_amount,0)	'收入申请开票（含税金额）',
+	(IFNULL(d.oc_money,0) - IFNULL(incomeapply.local_amount,0)) '金额差异',
+	IF(d.issue_date IS NOT NULL && incomeapply.incomeinvoice_apply_id IS NULL && incomeapply.apply_date IS NULL,
+		'已开外经证无收入开票申请',''
+	)  '预警信息'
+FROM
+	OuterChannelApply a
+LEFT JOIN OuterChannelApplyDetail d ON d.pid = a.id
+LEFT JOIN sys_office department_id ON department_id.id = d.department_id
+LEFT JOIN ProjectManagement projectManagement ON projectManagement.id = a.project_name
+LEFT JOIN sys_user apply_user ON apply_user.id = a.apply_user
+LEFT JOIN CustomerTable customer ON customer.id = a.customer
+LEFT JOIN OuterChannelCheckDetail outerchannelcheckdetail ON  outerchannelcheckdetail.oc_id= d.oc_id
+LEFT JOIN IncomeContractAdmin incomeContractAdmin ON incomeContractAdmin.id = d.contract_name
+LEFT JOIN IncomeApply incomeapply ON incomeapply.project_id = a.project_id

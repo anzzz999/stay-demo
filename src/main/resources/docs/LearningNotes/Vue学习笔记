@@ -1,0 +1,78 @@
+1.Vue是一个渐进式的框架
+	渐进式意味着你可以将Vue作为你应用的一部分嵌入其中，带来更丰富的交互体验。
+	或者如果你希望将更多的业务逻辑使用Vue实现，那么Vue的核心库以及其生态系统。比如Core+Vue-router+Vuex，也可以满足你各种各样的需求。
+	响应式
+	
+2.Vue有很多特点和Web开发中常见的高级功能
+	解耦视图和数据
+	可复用的组件
+	前端路由技术
+	状态管理
+	虚拟DOM
+3.v-once: 
+	该指令后面不需要跟任何表达式(比如之前的v-for后面是由跟表达式的)
+	该指令表示元素和组件(组件后面才会学习)只渲染一次，不会随着数据的改变而改变。
+4.v-html
+5.v-text
+6.v-pre
+	v-pre用于跳过这个元素和它子元素的编译过程，用于显示原本的Mustache语法
+7.v-bind指令：
+		作用：动态绑定属性
+		图片的链接src、网站的链接href、动态绑定一些类、样式等等
+		
+8.methods和computed
+	计算属性会进行缓存，如果多次使用时，计算属性只会调用一次。
+	
+9.v-on
+	作用：绑定事件监听器
+	缩写：@
+	预期：Function | Inline Statement | Object
+	参数：event
+		情况一：如果该方法不需要额外参数，那么方法后的()可以不添加。
+		但是注意：如果方法本身中有一个参数，那么会默认将原生事件event参数传递进去
+		情况二：如果需要同时传入某个参数，同时需要event时，可以通过$event传入事件。
+		
+	.stop - 调用 event.stopPropagation()。 							 阻止事件冒泡
+	.prevent - 调用 event.preventDefault()。						 阻止默认事件，如 提交表单
+	.{keyCode | keyAlias} - 只当事件是从特定键触发时才触发回调。	 @keyup.enter
+	.native - 监听组件根元素的原生事件。	
+	.once - 只触发一次回调。
+
+10.Vue中包含了一组观察数组编译的方法，使用它们改变数组也会触发视图的更新。
+		push()
+		pop()
+		shift()   删除数组中的第一个元素
+		unshift() 在数组最前面添加元素
+		splice() .splice作用: 删除元素/插入元素/替换元素
+		sort()
+		reverse()
+		
+		set(要修改的对象, 索引值, 修改后的值)
+        // Vue.set(this.message, 0, 'aaa')
+
+
+11. filter、map、reduce
+ let number = this.message.filter(function (n) {
+                    return n>100;
+                }).map(function (n ) {
+                    return n * 2
+                }).reduce(function (preValue,n) {
+                    return preValue + n
+                },0)
+
+12.  
+		<!--1.修饰符: lazy-->
+		<input type="text" v-model.lazy="message">
+		<h2>{{message}}</h2>
+		
+		
+		<!--2.修饰符: number-->
+		<input type="number" v-model.number="age">
+		<h2>{{age}}-{{typeof age}}</h2>
+		
+		<!--3.修饰符: trim-->
+		<input type="text" v-model.trim="name">
+		<h2>您输入的名字:{{name}}</h2>
+
+13.组件data为什么是函数
+	因为组件是为了代码复用而产生的，为了保证组件数据互不干扰、保证其独立性 

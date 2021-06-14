@@ -1,0 +1,223 @@
+欧康报表
+
+1.项目汇总表（成本管控预警）
+
+	SELECT
+	(select name from sys_office o where o.id = department_name) '部门',
+	project_id '项目编号',
+	project_name '项目名称',
+	(select c.customer_name_all from customertable c where c.id = p.customer_name_all) '客户单位',
+	(select constructor_name_all from constructortable c where c.id = constructor_company) '建设单位',
+	year '年份',
+	area '地区', 
+	getlabel('project_type', type) '类别',
+	getlabel('project_profession_type', profession) '专业',
+	getlabel('project_management_type', operation_mode) '经营方式',
+	(select name from sys_user u where u.id = responsibility_person) '项目经理（欧康）',
+	supplier_principal '供应商负责人',
+	team '项目组',
+	undertaking_unit '承接单位',
+	start_date '开工日期',
+	expected_date '预计完工日期',
+	menagement_ratio '管理费比例',
+	tax_money_all '预计总收入（含税）',
+	tax_rate '税率',
+	money '预计总收入（不含税）',
+	tax '税额',
+	budget_cost_rate '预算成本率',
+	budget_cost_no '预算成本（不含税）',
+	is_abroad_project '是否为海外项目',
+	financial_id '财务编号',
+	project_from '项目归属（财务）',
+	develop_id '研发项编号',
+	getlabel('project_type', project_type)  '项目类型'
+	FROM `projectmanagement` p;
+	
+
+2.项目成本管控(分年月）
+	SELECT
+	DATE_FORMAT(application_date,'%Y - %m') '收入/费用归属年月',
+	(select name from sys_office o where o.id = department_name) '部门',
+	project_id '项目编号',
+	project_name '项目名称',
+	(select c.customer_name_all from customertable c where c.id = p.customer_name_all) '客户单位',
+	(select constructor_name_all from constructortable c where c.id = constructor_company) '建设单位',
+	year '年份',
+	area '地区', 
+	getlabel('project_type', type) '类别',
+	getlabel('project_profession_type', profession) '专业',
+	getlabel('project_management_type', operation_mode) '经营方式',
+	(select name from sys_user u where u.id = responsibility_person) '项目经理（欧康）',
+	supplier_principal '供应商负责人',
+	team '项目组',
+	undertaking_unit '承接单位',
+	start_date '开工日期',
+	expected_date '预计完工日期',
+	menagement_ratio '管理费比例',
+	tax_money_all '预计总收入（含税）',
+	tax_rate '税率',
+	money '预计总收入（不含税）',
+	tax '税额',
+	budget_cost_rate '预算成本率',
+	budget_cost_no '预算成本（不含税）',
+	is_abroad_project '是否为海外项目',
+	financial_id '财务编号',
+	project_from '项目归属（财务）',
+	develop_id '研发项编号',
+	getlabel('project_type', project_type)  '项目类型'
+	FROM `projectmanagement` p;
+
+3.（工程类）合同进度管控预警表
+	SELECT
+	(select name from sys_office o where o.id = department_id) '部门',
+	i.project_id	'项目编号',
+	pm.project_name 	'项目名称',
+	i.responsibility_person	'项目经理（欧康）',
+	i.management_model	'经营模式',
+	i.area	'区域',
+	i.year	'年份',
+	i.profession	'专业',
+	i.undertaking_unit	'承接单位',
+	i.is_abroad_project	'是否为海外项目',
+	i.drop_point	'降点',
+	i.contract_name	'合同名称',
+	i.inside_contract_id	'内部合同编号',
+	i.outside_contract_id	'外部合同编号',
+	i.contract_id_one  '框架合同编码',
+	getlabel('income_contract_type',i.contract_type) '收款合同类别',
+	i.customer_project_id '客户项目号',
+	(select c.customer_name_all from CustomerTable c where c.id = contract_a) '付款方',
+	i.contract_b '收款方',
+	i.is_contact_receipt '是否关联收入到款',
+	i.settlement_type  '结算方式',
+	i.order_create_date_client  '订单创建日期（客户）',
+	i.sign_date  '签订日期',
+	i.start_date '开始日期',
+	i.end_date  '结束日期',
+	i.contract_effective_day  '合同有效期（天）',
+	i.warranty_start_date  '质保开始日期',
+	i.warranty_end_date  '质保结束日期',
+	i.warranty  '质保期（天）',
+	i.file_date  '归档日期',
+	i.quality_deposit '质保金',
+	i. status '收款合同状态',
+	i.local_money '合同金额（含税）',
+	i.local_amount_no  '合同金额（不含税）',
+	i.tax  '合同金额（税金）'
+	FROM  incomecontractadmin i , ProjectManagement pm  where  pm.id=i.project_name and pm.project_type=1 
+
+
+4.工程管理--项目汇总表（收入）
+	SELECT 
+	application_date '立项申请日期',
+	(select name from sys_office o where o.id = department_name) '部门',
+	(select name from sys_user u where u.id = apply_name) '申请人',
+	project_id '项目编号',
+	project_name '项目名称',
+	(select w.tender_id from winbid w where w.id = p.successnotice_id)  '中标通知编号',
+	(select c.customer_name_all from customertable c where c.id = p.customer_name_all) '客户单位',
+	(select constructor_name_all from constructortable c where c.id = constructor_company) '建设单位',
+	year '年份',
+	area '地区', 
+	(select label from sys_dict_value where dict_type_id="f36194590fe741e5a35bca447488a3cf" and value=type ) '类别',
+	(select label from sys_dict_value where dict_type_id="eb89c03a013e451d9453b6f03b5582c1" and value=profession ) '专业',
+	(select label from sys_dict_value where dict_type_id="ac9819919a6a42f88928103bc235ffe5" and value=operation_mode) '经营方式',
+	(select name from sys_user u where u.id = responsibility_person) '项目经理（欧康）',
+	supplier_principal '供应商负责人',
+	team '项目组',
+	undertaking_unit '承接单位',
+	start_date '开工日期',
+	expected_date '预计完工日期',
+	menagement_ratio '管理费比例',
+	tax_money_all '预计总收入（含税）',
+	tax_rate '税率',
+	money '预计总收入（不含税）',
+	tax '税额',
+	budget_cost_rate '预算成本率',
+	budget_cost_no '预算成本（不含税）',
+	if(is_abroad_project=0,'否','是')  '是否为海外项目',
+	financial_id '财务编号',
+	project_from '项目归属（财务）',
+	develop_id '研发项编号',
+	(select label from sys_dict_value where dict_type_id="81efc6c00d9d4a0f906acb89d24764bf" and value= project_type ) '项目类型',
+	(select label from sys_dict_value where dict_type_id="1a7fb44bcc6247c087d35fbbe6b3cb6b" and value= project_status) '项目状态',
+	exp_close_date '预关闭日期',
+	project_close_date '项目关闭日期'
+	FROM `projectmanagement` p;
+
+
+
+5.工程管理--收款合同汇总表(收入）
+	SELECT
+	(select name from sys_office o where o.id = department_id) '部门',
+	project_id	'项目编号',
+	(select pm.project_name  from projectmanagement pm  where pm.id =i.project_name)	'项目名称',
+	responsibility_person	'项目经理（欧康）',
+	management_model	'经营模式',
+	area	'区域',
+	year	'年份',
+	profession	'专业',
+	undertaking_unit	'承接单位',
+	is_abroad_project	'是否为海外项目',
+	drop_point	'降点',
+	contract_name	'合同名称',
+	inside_contract_id	'内部合同编号',
+	outside_contract_id	'外部合同编号',
+	contract_id_one  '框架合同编码',
+	contract_type  '收款合同类别',
+	customer_project_id '客户项目号',
+	(select c.customer_name_all from CustomerTable c where c.id = contract_a) '付款方',
+	contract_b '收款方',
+	is_contact_receipt '是否关联收入到款',
+	settlement_type  '结算方式',
+	order_create_date_client  '订单创建日期（客户）',
+	sign_date  '签订日期',
+	start_date '开始日期',
+	end_date  '结束日期',
+	contract_effective_day  '合同有效期（天）',
+	warranty_start_date  '质保开始日期',
+	warranty_end_date  '质保结束日期',
+	warranty  '质保期（天）',
+	file_date  '归档日期',
+	quality_deposit '质保金',
+	status '收款合同状态',
+	local_money '合同金额（含税）',
+	local_amount_no  '合同金额（不含税）',
+	tax  '合同金额（税金）'
+	FROM incomecontractadmin i
+
+
+
+
+6.项目年度指标完进度报表
+			SELECT 
+	p.plan_year '计划归属年份',
+	pd.department_id	'部门',
+	pd.project_id	'项目编号',
+	(select pm.project_name  from projectmanagement pm  where pm.id =pd.project_name)	'项目名称',
+	pd.operation_mode	'经营方式',	
+	pd.year '项目归属年份',
+	pd.area	'地区',
+	pd.type	'类别',
+	pd.profession	'专业',
+	pd.responsibility_person	'项目经理',
+	pd.customer_name_all	'客户单位',
+	pd.constructor_company	'建设单位',
+	pd.tax_money_all	'项目预计总收入（含税）',
+	pd.money_no	'项目预计总收入（不含税）',
+	pd.project_type '项目类型',
+	pd.project_status	'项目状态'
+	FROM projectannualindicator p LEFT JOIN ProjectAnnualIndicatorDetail pd
+	on p.id = pd.pid;
+
+7.（报销类）年度预算与实际支出管控表
+	SELECT 
+	(select name from sys_office o where o.id = department_id)  '部门',
+	project_manager '项目经理',
+	project_id '项目编号',
+	(SELECT pm.project_name FROM projectmanagement pm WHERE pm.id=p.project_name) '项目名称',
+	operation_mode	'经营模式',
+	budget_year	'预算归属年度',
+	bm.name '预算模块',
+	budget_cost_no	'预算成本（不含税）'
+	from ProjectBudgetYear p LEFT JOIN ProjectBudgetYeardetail pd ON p.id = pd.pid LEFT JOIN budgetmodule bm on bm.id = pd.budget_type

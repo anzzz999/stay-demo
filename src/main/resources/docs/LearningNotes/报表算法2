@@ -1,0 +1,743 @@
+1.供应商成本发票提交管理报表
+
+	SELECT
+	cv.*, cir.money ,
+	cir.tax AS "已交对公成发票税金",
+	cir.tax_money_all AS "已交对公成发票含税",
+	(cv.invoice_tax_money_all - cir.tax_money_all)  "对公成本票差额",
+	CASE 
+	when (cv.invoice_tax_money_all - cir.tax_money_all)<0 THEN '多票待处理'
+	when (cv.invoice_tax_money_all - cir.tax_money_all)>0 THEN '少票，待交'
+	when ((cv.invoice_tax_money_all - cir.tax_money_all)=0 AND	(ABS(cir.money - cv.invoice_money)<=10)) THEN '已交票'
+	ELSE '交票异常'
+	end
+	as '对公成本发票提交预警' 
+	FROM
+		costinvoicingnotice_view cv
+		LEFT JOIN CooperativeInvoiceRegister cir
+	on
+	cv.invoice_notice_id = cir.invoice_notice_id
+	
+
+								SELECT
+									a.invoice_notice_id AS "开票通知书编号",
+									a.producer_date AS "制表日期",
+									producer_by. NAME AS "制表人",
+									department_id. NAME AS "部门",
+									a.outside_contract_id AS "收款协议编号",
+									agreement_id.agreement_id AS "合作协议编号",
+									a.project_id AS "项目编号",
+									a.project_name AS "项目名称",
+									a.area AS "地区",
+									a.project_management_model AS "项目经营模式",
+									a.project_year AS "项目年份",
+									supplier.supplier_name_all AS "供应商",
+									a.responsibility_person AS "供应商负责人",
+									a.basic_proportions AS "基础比例",
+									a.notice_tax_money_all AS "本次对应下达通知收入票（含税）",
+									a.notice_money AS "本次对应下达通知收入票（不含税）",
+									a.reward AS "本次奖励小计",
+									a.fine AS "本次罚款小计",
+									a.partially_repay_all AS "本次代付和（含税）",
+									a.partially_repay_no AS "本次代付和（不含税）",
+									a.partially_repay_taxes AS "本次代付和（税金）",
+									a.invoice_money AS "本次应交成本票小计（不含税）",
+									a.invoice_tax AS "本次应交成本票小计（税金）",
+									a.invoice_tax_money_all AS "本次应交成本发票小计（含税）"
+								FROM
+									CostInvoicingNotice a
+								LEFT JOIN sys_user producer_by ON producer_by.id = a.producer_by
+								LEFT JOIN sys_office department_id ON department_id.id = a.department_id
+								LEFT JOIN cooperationagreement agreement_id ON agreement_id.id = a.cooperation_agreement_id
+								LEFT JOIN SupplierTable supplier ON supplier.id = a.supplier
+								
+								SELECT
+								
+									cir.money AS "money",
+									cir.tax AS "tax",
+									cir.tax_money_all AS "tax_money_all"
+									
+								FROM
+								CooperativeInvoiceRegister cir
+
+余哥代码 收入票开具报表
+					SELECT
+			i.incomeinvoice_apply_id '收入票申请编号',
+				i.project_id '项目编号',
+				incomemanager.project_name '项目名称',
+				office.name '部门',
+				i.management_model '经营模式',
+				i.project_year '项目年份',
+				i.area '地区',
+				i.project_manager '项目经理',
+				getlabel('yes_no',income.is_abroad_project) '是否海外项目', 
+				getlabel('billing_operation_type',i.operation_type)AS '操作类型',
+				i.create_date '申请时间',
+				d.customer_project_id '客户项目号',
+				d.custome_company '客户单位',
+				d.inside_contract_id '内部合同号',
+				d.outside_contract_id '外部合同号',
+				income.contract_name '合同名称',
+				d.contract_money_all '合同金额',
+			getlabel('money_type',d.money_type) AS '款项类型',
+				d.money_content '结算内容',
+			getlabel('invoice_type',d.invoice_type) AS '发票类型',
+				d.tax_rate '税率',
+				d.tax_money_all '本次申请开票金额(含税)',
+				d.money '本次申请开票金额(不含税)',
+				(d.tax_money_all - d.money) '本次申请开票金额(税金)',
+			d.cost_Invoice_num '需下成本开票通知次数',
+				d.invoice_id '收入发票号',
+			incomemanager.invoice_date '开票日期',
+				d.finish_invoice_tax_money_all '收入已开票含税',
+			d.finish_apply_money '收入已开票不含税',
+			(d.finish_invoice_tax_money_all - d.finish_apply_money) '收入已开票税金',
+			IF (incomemanager.invoice_date is not null and d.invoice_id is not null and d.tax_money_all=d.finish_invoice_tax_money_all,'已开票','待处理' )
+			'收入票开具管理'
+			FROM
+				incomeapply i
+			LEFT JOIN incomeapplydetail d ON i.id = d.pid
+			LEFT JOIN incomemanager on incomemanager.incomeinvoice_apply_id = i.incomeinvoice_apply_id
+			LEFT JOIN incomecontractadmin income ON income.outside_contract_id = d.outside_contract_id
+			LEFT JOIN sys_office office on office.id = i.department_id
+			where i.project_id like concat('%',:project_id,'%') 
+			and i.management_model like concat('%',:management_model,'%') 
+			and d.outside_contract_id like concat('%',:outside_contract_id,'%') 
+			and i.incomeinvoice_apply_id like concat('%',:incomeinvoice_apply_id,'%')
+
+
+2.成本开票通知下达管控报表
+				SELECT
+  i.incomeinvoice_apply_id '收入票申请编号',
+	i.project_id '项目编号',
+	incomemanager.project_name '项目名称',
+	office.name '部门',
+	i.management_model '经营模式',
+	i.project_year '项目年份',
+	i.area '地区',
+	i.project_manager '项目经理',
+    getlabel('yes_no',income.is_abroad_project) '是否海外项目', 
+    getlabel('billing_operation_type',i.operation_type)AS '操作类型',
+	i.create_date '申请时间',
+	d.outside_contract_id '外部合同编号',
+	income.contract_name '合同名称',
+	d.contract_money_all '合同金额',
+  getlabel('money_type',d.money_type) AS '款项类型',
+	d.money_content '结算内容',
+  getlabel('invoice_type',d.invoice_type) AS '发票类型',
+	d.tax_rate '税率',
+	d.tax_money_all '本次申请开票金额(含税)',
+	d.money '本次申请开票金额(不含税)',
+	(d.tax_money_all - d.money) '本次申请开票金额(税金)',
+  d.cost_Invoice_num '需下成本开票通知次数',
+	d.invoice_id '收入发票号',
+  incomemanager.invoice_date '开票日期',
+	d.finish_invoice_tax_money_all '收入已开票含税',
+  d.finish_apply_money '收入已开票不含税',
+  (d.finish_invoice_tax_money_all - d.finish_apply_money) '收入已开票税金',
+ cin.invoice_money '应交成本发票不含税',
+ cin.invoice_tax '应交成本发票税金',
+ cin.invoice_tax_money_all '应交成本发票含税',
+	d.cost_Invoiced_num	'已下成本开票通知次数',
+ (d.cost_Invoice_num - d.cost_Invoiced_num) '剩余开票通知次数',
+  IF (incomemanager.invoice_date is not null and d.invoice_id is not null and d.tax_money_all=d.finish_invoice_tax_money_all,'已开票','待处理' ) '收入票开具管理',
+		IF((d.cost_Invoice_num - d.cost_Invoiced_num)=0,'已完成','待处理') '成本开票通知管理'
+FROM
+	incomeapply i
+LEFT JOIN incomeapplydetail d ON i.id = d.pid
+LEFT JOIN incomemanager on incomemanager.incomeinvoice_apply_id = i.incomeinvoice_apply_id
+LEFT JOIN incomecontractadmin income ON income.outside_contract_id = d.outside_contract_id
+LEFT JOIN sys_office office on office.id = i.department_id
+LEFT JOIN CostInvoicingNotice cin ON cin.incomeinvoice_apply_id=i.id
+where i.management_model IN ('合作（W）','合作（G）' )
+			and i.project_id like concat('%',:project_id,'%') 
+			and i.management_model like concat('%',:management_model,'%') 
+			and d.outside_contract_id like concat('%',:outside_contract_id,'%') 
+			and i.incomeinvoice_apply_id like concat('%',:incomeinvoice_apply_id,'%')
+			
+			
+3.项目到款任务书下达管控报表		
+SELECT
+	a.bill_id AS "收款单编号",
+	a.collection_date AS "收款日期",
+			im.incomeinvoice_apply_id'收入票申请编号',
+	a.project_id AS "项目编号",
+	a.project_name AS "项目名称",
+	department_id. NAME AS "部门",
+	a.management_model AS "经营模式",
+	im.project_year '项目年份',
+	im.area '地区',
+  im.project_manager '项目经理',
+  getlabel("billing_operation_type",im.operation_type) '操作类型',
+ d.outside_contract_id '外部合同编号',
+	ica.contract_name'合同名称',
+ incomeadminview.local_money '合同金额',
+d.money_type'款项类型',
+ d.money_content '结算内容',
+ getlabel('invoice_type',im.invoice_type) '发票类型',
+			'需下成本开票通知次数',
+			im.invoice_id '收入发票号',
+  im.invoice_date '开票日期',
+  d.tax_rate '税率',
+  d.tax_money_all '本次到款(含税)',
+  d.money '本次到款(不含税)',
+  ( d.tax_money_all - d.money ) '本次到款(税金)',
+  d.receipt_taskbook_num'需下项目到款任务书次数',
+  resBook.invoice_money '本次下达成本不含税',
+  resBook.invoice_tax '下达成本税金',
+  resBook.invoice_tax_money_all '下达成本费用',
+  d.receipted_taskbook_num'已下项目到款任务书次数',
+  (d.receipt_taskbook_num - d.receipted_taskbook_num) '剩余可下任务书次数',
+ IF((d.receipt_taskbook_num - d.receipted_taskbook_num)=0,'已完成','待处理')  '到款任务书下达管理'
+FROM
+	Receipt a
+LEFT JOIN receiptdetail d ON d.pid = a.id
+LEFT JOIN IncomeManager im ON im.id = d.invoice_num
+LEFT JOIN sys_office department_id ON department_id.id = a.department_id
+LEFT JOIN incomeadminview  ON incomeadminview.outside_contract_id =d.outside_contract_id
+LEFT JOIN IncomeContractAdmin ica ON ica.id= d.contract_name
+LEFT JOIN ProjectPaymentResBookDetail resBook ON resBook.outside_contract_id= d.outside_contract_id
+where im.management_model IN ('合作（W）','合作（G）' )
+
+
+4.任务书剩余可付报表（协议）
+SELECT
+	department. NAME AS "部门",
+	getlabel('project_status',projectManagement.project_status) AS	'项目状态',
+	a.project_id AS "项目号",
+	projectManagement.project_name AS "项目名称",
+	getlabel('contract_type',a.contract_type) AS "合同类型",
+  '协议属性',
+ "协议阶段状态",
+	a.agreement_id AS "协议编号",
+	supplier.supplier_name_all AS "供应商",
+	a.supplier_responsibility_person AS "供应商负责人",
+	a.management_model AS "经营模式",
+	a.project_responsibility_person AS "项目经理",
+	a.basic_proportions AS "基本比例",
+	a.agreement_terms AS "协议关键条款",
+	a.cooperation_guarantee_money AS "协议登记合作保证金",
+	IFNULL(pb.total_money,0) AS '供应商实缴保证金',
+	IFNULL(pb.refund_money,0) AS '实缴保证金退回金额',
+	IFNULL(pfd.tax_money_all,0) AS "代付登记含税",
+	IFNULL(pfd.money, 0) AS "代付登记不含税",
+	IFNULL(pfd.tax, 0) AS "代付登记税金",
+
+	IFNULL(cin.reward, 0) AS "奖励",
+	IFNULL(cin.fine, 0) AS "罚款",
+
+	IFNULL(cin.partially_repay_all, 0) as "成本开票通知代付含税",
+	IFNULL(cin.partially_repay_no, 0) as "成本开票通知代付不含税",
+	IFNULL(cin.partially_repay_taxes, 0) as "成本开票通知代付税金",
+	IFNULL(cin.invoice_tax_money_all, 0) AS '对公应交成本票（含税）',
+	IFNULL(cin.invoice_money, 0) AS '对公应交成本票（不含税）',
+	IFNULL(cin.invoice_tax, 0) AS '对公应交成本票（税金）',
+
+	IFNULL(prb.reward, 0) AS  '到款任务书奖励',
+	IFNULL(prb.fine, 0) AS  '到款任务书罚款',
+
+	IFNULL(prb.partially_repay_all, 0) AS  '到款任务书代付含税',
+	IFNULL(prb.partially_repay_no, 0) AS  '到款任务书代付不含税',
+	IFNULL(prb.partially_repay_taxes, 0) AS  '到款任务书代付税金',
+
+	IFNULL(prb.money, 0) AS  '到款任务书下达成本（不含税）',
+	IFNULL(prb.tax, 0) AS  '到款任务书下达成本（税金）',
+	IFNULL(prb.tax_money_all, 0) AS  '任务书下达成本费用',
+
+	IFNULL(d.exp_notice_money, 0) AS '对公应交票（含税）',
+	IFNULL(d.exp_billamt, 0) AS '对公已交票（含税）',
+  (IFNULL(d.exp_notice_money, 0) - IFNULL(d.exp_billamt, 0))as '对公发票差额',
+   
+	IF(par.proc_ins_id is NOT NULL,par.amount_requested_payment,0) '对公已申请付款',
+	IF(IFNULL(par.financial_payment_money,0) !=0 ,par.cumulative_paid_to_public,0) '对公已付款',
+	
+	( IF(IFNULL(par.financial_payment_money,0) !=0 ,par.cumulative_paid_to_public,0) - 	IFNULL(pfd.tax_money_all,0)  )  AS '任务书剩余应付款',
+	(IF((prb.ele_check_date IS NOT NULL) and (prb.paper_return_date is NULL),prbd.invoice_total_cost,0)) AS '在途任务书下达成本数',
+					'任务下达成本剩余可申请付款数',
+		(IFNULL(d.exp_billamt, 0) - IF(IFNULL(par.financial_payment_money,0)!=0 ,par.cumulative_paid_to_public,0) )		'对公发票剩余可付款'
+
+FROM
+	cooperationagreement a
+LEFT JOIN ProjectManagement projectManagement ON projectManagement.id = a.project_name
+LEFT JOIN sys_office department ON department.id = a.department_id
+LEFT JOIN SupplierTable supplier ON supplier.id = a.supplier_company
+LEFT JOIN cooperationagreementdetail_pid_view d ON d.pid = a.id
+LEFT JOIN performancebond_agreement_id_view pb ON pb.agreement_id=a.agreement_id
+LEFT JOIN projectpayforDetail_agreement_id_view pfd ON pfd.agreement_id=a.agreement_id
+LEFT JOIN costinvoicingnotice_agreement_id_view cin ON cin.cooperation_agreement_id=a.id
+LEFT JOIN projectpaymentresbook_agreement_id_view prb ON prb.cooperation_agreement_id=a.id
+LEFT JOIN ProjectPaymentResBookDetail prbd ON prbd.pid=prb.id
+LEFT JOIN paymentapplyregist_agreement_id_view par ON par.cooperation_agreement_id=a.id
+GROUP BY a.agreement_id
+HAVING a.management_model IN ('合作（W）','合作（G）' )
+
+
+														SELECT
+															department. NAME AS "部门",
+															a.agreement_state AS	'项目状态',
+															a.project_id AS "项目号",
+															projectManagement.project_name AS "项目名称",
+															getlabel('contract_type',a.contract_type) AS "合同类型",
+														'协议属性',
+														"协议阶段状态",
+															a.agreement_id AS "协议编号",
+															supplier.supplier_name_all AS "供应商",
+															a.supplier_responsibility_person AS "供应商负责人",
+															a.management_model AS "经营模式",
+															a.project_responsibility_person AS "项目经理",
+															a.basic_proportions AS "基本比例",
+															a.agreement_terms AS "协议关键条款",
+															a.cooperation_guarantee_money AS "协议登记合作保证金",
+															SUM(IFNULL(pb.total_money,0)) AS '供应商实缴保证金',
+															SUM(IFNULL(refund_money,0)) AS '实缴保证金退回金额',
+															SUM(IFNULL(pfd.tax_money_all,0)) AS "代付登记含税",
+															SUM(IFNULL(pfd.money, 0)) AS "代付登记不含税",
+															SUM(IFNULL(pfd.tax, 0)) AS "代付登记税金",
+															SUM(IFNULL(cin.reward, 0)) AS "奖励",
+															SUM(IFNULL(cin.fine, 0)) AS "罚款",
+															SUM(IFNULL(cin.partially_repay_all, 0)) as "成本开票通知代付含税",
+															SUM(IFNULL(cin.partially_repay_no, 0)) as "成本开票通知代付不含税",
+															SUM(IFNULL(cin.partially_repay_taxes, 0)) as "成本开票通知代付税金",
+															SUM(IFNULL(cin.invoice_tax_money_all, 0)) AS '对公应交成本票（含税）',
+															SUM(IFNULL(cin.invoice_money, 0)) AS '对公应交成本票（不含税）',
+															SUM(IFNULL(cin.invoice_tax, 0)) AS '对公应交成本票（税金）',
+														
+															SUM(IFNULL(prb.reward, 0)) AS  '到款任务书奖励',
+															SUM(IFNULL(prb.fine, 0)) AS  '到款任务书罚款',
+														
+															SUM(IFNULL(prb.partially_repay_all, 0)) AS  '到款任务书代付含税',
+															SUM(IFNULL(prb.partially_repay_no, 0)) AS  '到款任务书代付不含税',
+															SUM(IFNULL(prb.partially_repay_taxes, 0)) AS  '到款任务书代付税金',
+														
+															SUM(IFNULL(prb.money, 0)) AS  '到款任务书下达成本（不含税）',
+															SUM(IFNULL(prb.tax, 0)) AS  '到款任务书下达成本（税金）',
+															SUM(IFNULL(prb.tax_money_all, 0)) AS  '任务书下达成本费用',
+														
+															SUM(IFNULL(d.exp_notice_money, 0)) AS '对公应交票（含税）',
+															SUM(IFNULL(d.exp_billamt, 0)) AS '对公已交票（含税）',
+														(SUM(IFNULL(d.exp_notice_money, 0)) - SUM(IFNULL(d.exp_billamt, 0)))as '对公发票差额',
+														
+															IF(par.proc_ins_id is NOT NULL,par.amount_requested_payment,0) '对公已申请付款',
+															IF(IFNULL(par.financial_payment_money,0) !=0 ,par.cumulative_paid_to_public,0) '对公已付款',
+															
+															( IF(IFNULL(par.financial_payment_money,0) !=0 ,par.cumulative_paid_to_public,0) - 	SUM(IFNULL(pfd.tax_money_all,0))  ) AS '任务书剩余应付款' AS '任务书剩余应付款',
+															SUM(IF((prb.ele_check_date IS NOT NULL) and (prb.paper_return_date is NULL),prbd.invoice_total_cost,0)) AS '在途任务书下达成本数',
+																			'任务下达成本剩余可申请付款数',
+																(IFNULL(d.exp_billamt, 0) - IF(IFNULL(par.financial_payment_money,0)!=0 ,par.cumulative_paid_to_public,0) )		'对公发票剩余可付款'
+														
+														FROM
+															cooperationagreement a
+														LEFT JOIN ProjectManagement projectManagement ON projectManagement.id = a.project_name
+														LEFT JOIN sys_office department ON department.id = a.department_id
+														LEFT JOIN SupplierTable supplier ON supplier.id = a.supplier_company
+														LEFT JOIN CooperationagreementDetail d ON d.pid = a.id
+														LEFT JOIN PerformanceBond pb ON pb.agreement_id=a.agreement_id
+														LEFT JOIN ProjectPayForDetail pfd ON pfd.agreement_id=a.agreement_id
+														LEFT JOIN CostInvoicingNotice cin ON cin.cooperation_agreement_id=a.id
+														LEFT JOIN ProjectPaymentResBook prb ON prb.cooperation_agreement_id=a.id
+														LEFT JOIN ProjectPaymentResBookDetail prbd ON prbd.pid=prb.id
+														LEFT JOIN PaymentApplyRegist par ON par.cooperation_agreement_id=a.id
+														GROUP BY a.agreement_id
+														HAVING a.management_model IN ('合作（W）','合作（G）' )
+														
+														
+5.任务书剩余可付款（项目+人）-财务
+SELECT
+	department. NAME AS "部门",
+	getlabel('project_status',pm.project_status) AS	'项目状态',
+	a.project_id AS "项目号",
+	pm.project_name AS "项目名称",
+	a.supplier_responsibility_person AS "供应商负责人",
+	a.management_model AS "经营模式",
+	a.project_responsibility_person AS "项目经理",
+	IFNULL(a.cooperation_guarantee_money,0) AS "协议登记合作保证金", 
+
+	IFNULL(pb.total_money,0) AS '供应商实缴保证金',
+	IFNULL(pb.refund_money,0) AS '实缴保证金退回金额',
+	IFNULL(ca.reward,0) AS '供应商奖励',
+	IFNULL(ca.fine,0) AS '供应商罚款',
+	IFNULL(pfd.tax_money_all,0) AS "代付登记含税",
+	IFNULL(pfd.money, 0) AS "代付登记不含税",
+	IFNULL(pfd.tax, 0) AS "代付登记税金",
+
+	IFNULL(cin.reward, 0) AS "奖励",
+	IFNULL(cin.fine, 0) AS "罚款",
+
+	IFNULL(cin.partially_repay_all, 0) as "成本开票通知代付含税",
+	IFNULL(cin.partially_repay_no, 0) as "成本开票通知代付不含税",
+	IFNULL(cin.partially_repay_taxes, 0) as "成本开票通知代付税金",
+	IFNULL(cin.invoice_tax_money_all, 0) AS '对公应交成本票（含税）',
+	IFNULL(cin.invoice_money, 0) AS '对公应交成本票（不含税）',
+	IFNULL(cin.invoice_tax, 0) AS '对公应交成本票（税金）',
+
+
+	IFNULL(prb.reward, 0) AS  '到款任务书奖励',
+	IFNULL(prb.fine, 0) AS  '到款任务书罚款',
+
+	IFNULL(prb.partially_repay_all, 0) AS  '到款任务书代付含税',
+	IFNULL(prb.partially_repay_no, 0) AS  '到款任务书代付不含税',
+	IFNULL(prb.partially_repay_taxes, 0) AS  '到款任务书代付税金',
+
+	IFNULL(prb.money, 0) AS  '到款任务书下达成本（不含税）',
+	IFNULL(prb.tax, 0) AS  '到款任务书下达成本（税金）',
+	IFNULL(prb.tax_money_all, 0) AS  '任务书下达成本费用',
+
+	IFNULL(d.exp_notice_money, 0) AS '对公应交票（含税）',
+	IFNULL(d.exp_billamt, 0) AS '对公已交票（含税）',
+   (IFNULL(d.exp_notice_money, 0) - IFNULL(d.exp_billamt, 0))as '对公发票差额',
+
+	IF(par.proc_ins_id is NOT NULL,par.amount_requested_payment,0) '对公已申请付款',
+	IF(IFNULL(par.financial_payment_money,0) !=0 ,par.cumulative_paid_to_public,0) '对公已付款',
+	( IF(IFNULL(par.financial_payment_money,0) !=0 ,par.cumulative_paid_to_public,0) - 	IFNULL(pfd.tax_money_all,0)  ) AS '任务书剩余应付款',
+
+	IF((prb.ele_check_date IS NOT NULL) and (prb.paper_return_date is NULL),prbd.invoice_total_cost,0) AS '在途任务书下达成本数',
+
+		IF(getlabel('project_status',pm.project_status)='预关闭',
+			 IFNULL(prb.tax_money_all, 0)- IF(par.proc_ins_id is NOT NULL,par.amount_requested_payment,0) - IFNULL(pfd.tax_money_all,0) ,
+			( IFNULL(prb.tax_money_all, 0) - IF(par.proc_ins_id is NOT NULL,par.amount_requested_payment,0) -a.cooperation_guarantee_money 
+			+ IFNULL(pb.total_money,0) - IFNULL(pb.refund_money,0) - IFNULL(pfd.tax_money_all,0) ))	'任务下达成本剩余可申请付款数',
+
+	( IFNULL(d.exp_billamt, 0) -  IF(IFNULL(par.financial_payment_money,0) !=0 ,par.cumulative_paid_to_public,0) ) AS '对公发票剩余可付款'
+	
+	FROM
+		cooperationagreement a
+	LEFT JOIN cooperationagreementdetail_pid_view d ON d.pid = a.id
+	LEFT JOIN sys_office department ON department.id = a.department_id
+
+	LEFT JOIN performancebond_proid_person_view pb ON pb.project_id=a.project_id
+	LEFT JOIN SupplierTable s ON s.id = a.supplier_company
+	LEFT JOIN cooperativeaward_bonus_type_view ca ON a.project_id=ca.project_id 
+	LEFT JOIN projectpayfor_proid_person_view pfd ON pfd.project_id=a.project_id AND pfd.supplier_responsibility_person = a.supplier_responsibility_person
+	LEFT JOIN projectpaymentresbook_proid_person_view prb ON prb.project_id=a.project_id AND prb.responsibility_person = a.supplier_responsibility_person
+	LEFT JOIN ProjectPaymentResBookDetail prbd ON prbd.pid=prb.id
+	LEFT JOIN PaymentApplyRegist par ON par.project_id =a.project_id
+	LEFT JOIN ProjectManagement pm ON pm.project_id =a.project_id
+	LEFT JOIN costinvoicingnotice_proid_person_view cin ON cin.project_id=a.project_id AND cin.responsibility_person = a.supplier_responsibility_person
+GROUP BY a.project_id ,a.supplier_responsibility_person
+	HAVING a.management_model IN ('合作（W）','合作（G）' )
+															SELECT
+															department. NAME AS "部门",
+															getlabel('project_status',pm.project_status) AS	'项目状态',
+															a.project_id AS "项目号",
+															projectManagement.project_name AS "项目名称",
+															a.supplier_responsibility_person AS "供应商负责人",
+															a.management_model AS "经营模式",
+															a.project_responsibility_person AS "项目经理",
+															a.cooperation_guarantee_money AS "协议登记合作保证金", 
+														
+															SUM(IFNULL(pb.total_money,0)) AS '供应商实缴保证金',
+															SUM(IFNULL(pb.refund_money,0)) AS '实缴保证金退回金额',
+															SUM(IF(ca.bonus_type=1,ca.amount,0)) AS '供应商奖励',
+															SUM(IF(ca.bonus_type=2,ca.amount,0)) AS '供应商罚款',
+															SUM(IFNULL(pfd.tax_money_all,0)) AS "代付登记含税",
+															SUM(IFNULL(pfd.money, 0)) AS "代付登记不含税",
+															SUM(IFNULL(pfd.tax, 0)) AS "代付登记税金",
+														
+															SUM(IFNULL(prb.reward, 0)) AS  '到款任务书奖励',
+															SUM(IFNULL(prb.fine, 0)) AS  '到款任务书罚款',
+															
+															SUM(IFNULL(prb.partially_repay_all, 0)) AS  '到款任务书代付含税',
+															SUM(IFNULL(prb.partially_repay_no, 0)) AS  '到款任务书代付不含税',
+															SUM(IFNULL(prb.partially_repay_taxes, 0)) AS  '到款任务书代付税金',
+															
+															SUM(IFNULL(prb.money, 0)) AS  '到款任务书下达成本（不含税）',
+															SUM(IFNULL(prb.tax, 0)) AS  '到款任务书下达成本（税金）',
+															SUM(IFNULL(prb.tax_money_all, 0)) AS  '任务书下达成本费用',
+														
+															SUM(IFNULL(d.exp_notice_money, 0)) AS '对公应交票（含税）',
+															SUM(IFNULL(d.exp_billamt, 0)) AS '对公已交票（含税）',
+														(SUM(IFNULL(d.exp_notice_money, 0)) - SUM(IFNULL(d.exp_billamt, 0)))as '对公发票差额',
+														
+															IF(par.proc_ins_id is NOT NULL,par.amount_requested_payment,0) '对公已申请付款',
+															IF(IFNULL(par.financial_payment_money,0) !=0 ,par.cumulative_paid_to_public,0) '对公已付款',
+															( IF(IFNULL(par.financial_payment_money,0) !=0 ,par.cumulative_paid_to_public,0) - 	SUM(IFNULL(pfd.tax_money_all,0))  ) AS '任务书剩余应付款',
+														
+															SUM(IF((prb.ele_check_date IS NOT NULL) and (prb.paper_return_date is NULL),prbd.invoice_total_cost,0)) AS '在途任务书下达成本数',
+														
+																IF(getlabel('project_status',pm.project_status)='预关闭',
+																	( SUM(IFNULL(prb.tax_money_all, 0)) - IF(par.proc_ins_id is NOT NULL,par.amount_requested_payment,0) - SUM(IFNULL(pfd.tax_money_all,0)) ),
+																	( SUM(IFNULL(prb.tax_money_all, 0)) - IF(par.proc_ins_id is NOT NULL,par.amount_requested_payment,0) -a.cooperation_guarantee_money 
+																	+ SUM(IFNULL(pb.total_money,0)) - SUM(IFNULL(pb.refund_money,0)) - SUM(IFNULL(pfd.tax_money_all,0)) ))	'任务下达成本剩余可申请付款数',
+														
+															( SUM(IFNULL(d.exp_billamt, 0)) -  IF(IFNULL(par.financial_payment_money,0) !=0 ,par.cumulative_paid_to_public,0) ) AS '对公发票剩余可付款'
+															
+															FROM
+																cooperationagreement a
+															LEFT JOIN CooperationagreementDetail d ON d.pid = a.id
+															LEFT JOIN ProjectManagement projectManagement ON projectManagement.id = a.project_name
+															LEFT JOIN sys_office department ON department.id = a.department_id
+															LEFT JOIN PerformanceBond pb ON pb.project_id=a.project_id
+															LEFT JOIN SupplierTable s ON s.id = a.supplier_company
+															LEFT JOIN CooperativeAward ca ON s.id=ca.supplier 
+															LEFT JOIN	projectpayfor pf ON pf.project_id=a.project_id
+															LEFT JOIN ProjectPayForDetail pfd ON pfd.pid=pf.id
+															LEFT JOIN ProjectPaymentResBook prb ON prb.project_id=a.project_id
+															LEFT JOIN ProjectPaymentResBookDetail prbd ON prbd.pid=prb.id
+															LEFT JOIN PaymentApplyRegist par ON par.project_id =a.project_id
+															LEFT JOIN ProjectManagement pm ON pm.project_id =a.project_id
+															GROUP BY a.project_id ,a.supplier_responsibility_person
+															HAVING a.management_model IN ('合作（W）','合作（G）' )
+															
+															
+															
+export JAVA_HOME=/usr/java/jdk1.8.0_11
+
+export CATALINA_HOME=/usr/java/apache-tomcat-8.5.47
+
+export PATH=$PATH:$JAVA_HOME/bin:$CATALINA_HOME/bin
+
+export CLASSPATH=.:$JAVA_HOME/lib:$CATALINA_HOME/lib
+
+export JAVA_HOME PATH CLASSPATH CATALINA_HOME														
+			
+			
+															
+	这是项目+部门的sql													
+SELECT 
+  pm.*,
+  IFNULL(crr.tax_money_all, 0) AS "成本开票通知记录下达收入含税",
+  IFNULL(ppr.tax_money_all, 0) AS "项目到款任务书记录下达收入到款含税",
+  SUM(
+    IFNULL(
+      a.cooperation_guarantee_money,
+      0
+    )
+  ) AS "协议登记合作保证金",
+  IFNULL(pbs.total_money, 0) AS "供应商实缴保证金",
+  IFNULL(pbd.tax_money_all, 0) AS "实缴保证金退回金额",
+  IFNULL(ca.reward, 0) AS "供应商奖励",
+  IFNULL(ca.punishment, 0) AS "供应商罚款",
+  IFNULL(pfp.tax_money_all, 0) AS "代付登记含税",
+  IFNULL(pfp.money, 0) AS "代付登记不含税",
+  IFNULL(pfp.tax, 0) AS "代付登记税金",
+  IFNULL(crr.reward, 0) AS "奖励",
+  IFNULL(crr.fine, 0) AS "罚款",
+  IFNULL(crr.partially_repay_all, 0) AS "代付含税",
+  IFNULL(crr.partially_repay_no, 0) AS "代付不含税",
+  IFNULL(crr.partially_repay_taxes, 0) AS "代付税金",
+  IFNULL(crr.invoice_tax_money_all, 0) AS "对公应交成本票（含税）",
+  IFNULL(crr.invoice_money, 0) AS "对公应交成本票（不含税）",
+  IFNULL(crr.invoice_tax, 0) AS "对公应交成本票（税金）",
+  IFNULL(prb.reward, 0) AS "到款任务书奖励",
+  IFNULL(prb.fine, 0) AS "到款任务书罚款",
+  IFNULL(prb.partially_repay_all, 0) AS "到款任务书代付含税",
+  IFNULL(prb.partially_repay_no, 0) AS "到款任务书代付不含税",
+  IFNULL(prb.partially_repay_taxes, 0) AS "到款任务书代付税金",
+  IFNULL(prb.money, 0) AS "到款任务书下达成本（不含税）",
+  IFNULL(prb.tax, 0) AS "到款任务书下达成本（税金）",
+  IFNULL(prb.tax_money_all, 0) AS "任务书下达成本费用",
+  IFNULL(d.exp_notice_money, 0) AS "对公应交票（含税）",
+  IFNULL(d.exp_billamt, 0) AS "对公已交票（含税）",
+  IFNULL(d.Difference, 0) AS "对公发票差额",
+  IF(
+    par.proc_ins_id IS NOT NULL,
+    par.amount_requested_payment,
+    0
+  ) AS '对公已申请付款',
+  IF(
+    IFNULL(par.financial_payment_money, 0) != 0,
+    par.cumulative_paid_to_public,
+    0
+  ) AS '对公已付款',
+  IFNULL(pfp.Surplus, 0) AS "任务书剩余应付款",
+  IFNULL(prbs.cost, 0) AS "在途任务书下达成本数",
+  IF(
+    pm.project_status != '预关闭',
+    IFNULL(prb.tax_money_all, 0) - IF(
+      par.proc_ins_id IS NOT NULL,
+      par.amount_requested_payment,
+      0
+    ) - SUM(
+      IFNULL(
+        a.cooperation_guarantee_money,
+        0
+      )
+    ) + IFNULL(pbs.total_money, 0) - IFNULL(pbd.tax_money_all, 0) - IFNULL(pfp.tax_money_all, 0),
+    IFNULL(prb.tax_money_all, 0) - IF(
+      par.proc_ins_id IS NOT NULL,
+      par.amount_requested_payment,
+      0
+    ) - IFNULL(pfp.tax_money_all, 0)
+  ) AS "任务下达成本剩余可申请付款数",
+  IFNULL(d.exp_notice_money, 0) - IF(
+    IFNULL(par.financial_payment_money, 0) != 0,
+    par.cumulative_paid_to_public,
+    0
+  ) AS '对公发票剩余可付款' 
+FROM
+  cooperationagreement a 
+  LEFT JOIN 
+    (SELECT 
+      b.name AS "部门",
+      getlabel (
+        "project_status",
+        a.project_status
+      ) AS "project_status",
+      a.project_id AS "project_id",
+      a.`project_name` AS "project_name",
+      getlabel (
+        "project_management_type",
+        a.operation_mode
+      ) AS "operation_mode",
+      getUser (a.responsibility_person) AS "项目经理",
+      a.exp_billamt,
+			a.exp_billamt_no,
+			(a.exp_billamt - a.exp_billamt_no),
+      a.exp_rece_money,
+			a.exp_rece_money_no,
+			( a.exp_rece_money - a.exp_rece_money_no )		
+    FROM
+      ProjectManagement a 
+      LEFT JOIN sys_office b 
+        ON a.department_name = b.id) pm 
+    ON pm.project_id = a.`project_id` 
+  LEFT JOIN 
+    (SELECT 
+      project_id,
+      SUM(IFNULL(reward, 0)) AS "reward",
+      SUM(IFNULL(fine, 0)) AS "fine",
+      SUM(IFNULL(tax_money_all, 0)) AS "tax_money_all",
+      SUM(IFNULL(partially_repay_all, 0)) AS "partially_repay_all",
+      SUM(IFNULL(partially_repay_no, 0)) AS "partially_repay_no",
+      SUM(IFNULL(partially_repay_taxes, 0)) AS "partially_repay_taxes",
+      SUM(IFNULL(invoice_tax_money_all, 0)) AS "invoice_tax_money_all",
+      SUM(IFNULL(invoice_money, 0)) AS "invoice_money",
+      SUM(IFNULL(invoice_tax, 0)) AS "invoice_tax" 
+    FROM
+      CostInvoicingNotice 
+    GROUP BY project_id) crr 
+    ON crr.project_id = a.`project_id` 
+  LEFT JOIN 
+    (SELECT 
+      `project_id`,
+      SUM(IFNULL(tax_money_all, 0)) AS "tax_money_all" 
+    FROM
+      ProjectPaymentResBook 
+    GROUP BY project_id) ppr 
+    ON ppr.`project_id` = a.`project_id` 
+  LEFT JOIN 
+    (SELECT 
+      `project_id`,
+      id,
+      SUM(IFNULL(total_money, 0)) AS "total_money" 
+    FROM
+      PerformanceBond 
+    GROUP BY project_id) pbs 
+    ON pbs.`project_id` = a.`project_id` 
+  LEFT JOIN 
+    (SELECT 
+      `pid`,
+      SUM(IFNULL(tax_money_all, 0)) AS "tax_money_all" 
+    FROM
+      PerformanceBondDetail 
+    GROUP BY pid) pbd 
+    ON pbd.pid = pbs.`id` 
+  LEFT JOIN SupplierTable s 
+    ON s.id = a.supplier_company 
+  LEFT JOIN 
+    (SELECT 
+      `supplier`,
+      SUM(IF(bonus_type = 1, amount, 0)) AS 'reward',
+      SUM(IF(bonus_type = 2, amount, 0)) AS 'punishment' 
+    FROM
+      CooperativeAward 
+    GROUP BY supplier) ca 
+    ON s.id = ca.supplier 
+  LEFT JOIN 
+    (SELECT 
+      pf.`project_id` AS 'project_id',
+      SUM(IFNULL(pfd.tax_money_all, 0)) AS "tax_money_all",
+      SUM(IFNULL(pfd.money, 0)) AS "money",
+      SUM(IFNULL(pfd.tax, 0)) AS "tax",
+      (
+        IF(
+          IFNULL(par.financial_payment_money, 0) != 0,
+          par.cumulative_paid_to_public,
+          0
+        ) - SUM(IFNULL(pfd.tax_money_all, 0))
+      ) AS 'Surplus' 
+    FROM
+      ProjectPayForDetail pfd 
+      LEFT JOIN projectpayfor pf 
+        ON pfd.pid = pf.id 
+      LEFT JOIN PaymentApplyRegist par 
+        ON par.project_id = pf.project_id 
+    GROUP BY project_id) pfp 
+    ON pfp.project_id = a.`project_id` 
+  LEFT JOIN 
+    (SELECT 
+      `project_id`,
+      SUM(IFNULL(reward, 0)) AS 'reward',
+      SUM(IFNULL(fine, 0)) AS 'fine',
+      SUM(IFNULL(partially_repay_all, 0)) AS 'partially_repay_all',
+      SUM(IFNULL(partially_repay_no, 0)) AS 'partially_repay_no',
+      SUM(IFNULL(partially_repay_taxes, 0)) AS 'partially_repay_taxes',
+      SUM(IFNULL(money, 0)) AS 'money',
+      SUM(IFNULL(tax, 0)) AS 'tax',
+      SUM(IFNULL(tax_money_all, 0)) AS 'tax_money_all' 
+    FROM
+      ProjectPaymentResBook 
+    GROUP BY project_id) prb 
+    ON prb.project_id = a.project_id 
+  LEFT JOIN 
+    (SELECT 
+      d.`pid`,
+      SUM(IFNULL(d.exp_notice_money, 0)) AS 'exp_notice_money',
+      SUM(IFNULL(d.exp_billamt, 0)) AS 'exp_billamt',
+      (
+        SUM(IFNULL(d.exp_notice_money, 0)) - SUM(IFNULL(d.exp_billamt, 0))
+      ) AS 'Difference' 
+    FROM
+      CooperationagreementDetail d 
+    GROUP BY d.`pid`) d 
+    ON d.pid = a.id 
+  LEFT JOIN PaymentApplyRegist par 
+    ON par.project_id = a.project_id 
+  LEFT JOIN 
+    (SELECT 
+      prb.project_id AS "project_id",
+      SUM(
+        IF(
+          (prb.ele_check_date IS NOT NULL) 
+          AND (prb.paper_return_date IS NULL),
+          prbd.invoice_total_cost,
+          0
+        )
+      ) AS 'cost' 
+    FROM
+      ProjectPaymentResBook prb 
+      LEFT JOIN ProjectPaymentResBookDetail prbd 
+        ON prbd.pid = prb.id 
+    GROUP BY project_id) prbs 
+    ON prb.project_id = a.project_id 
+GROUP BY a.`project_id` 
+HAVING pm.operation_mode IN (
+    '合作（W）',
+    '合作（G）'
+  )			
+  
+where i.project_id like concat('%',:project_id,'%') 
+and d.outside_contract_id like concat('%',:outside_contract_id,'%') 
+and i.invoice_id like concat('%',:invoice_id,'%')
+AND i.project_name LIKE CONCAT("%",:project_name,"%")
+AND d.custome_company LIKE CONCAT("%",:custome_company,"%")
+AND d.customer_project_id LIKE CONCAT("%",:customer_project_id,"%")
+AND CASE
+WHEN ((DATEDIFF(CURDATE(), i.invoice_date) + 1) > 90 AND
+ (i.tax_money_all - i.exp_rece_money) > 10 ) THEN
+	'催收款'
+WHEN (
+	((DATEDIFF(CURDATE(), i.invoice_date) + 1) BETWEEN 1 and 90)
+	AND i.tax_money_all > 0
+) THEN
+	'跟进中'
+WHEN (i.tax_money_all - i.exp_rece_money) = 0 THEN
+	'收完款'
+WHEN (i.tax_money_all - i.exp_rece_money) < 0 THEN
+	'开票大于收款，请核查'
+ELSE
+	'无提示'
+END LIKE CONCAT("%",:message,"%")		
+														
+
+						

@@ -13,11 +13,11 @@ import java.util.stream.Stream;
  *
  * 这是map和flatMap的区别
  */
-public class flatMapApi {
+public class FlatMapApi {
     public static void main(String[] args) {
         String[]  strings= {"123", "456", "789"};
-        List<Stream<String>> list = Arrays.stream(strings).map(flatMapApi::letters).collect(Collectors.toList());
-        List<String> collect = Arrays.stream(strings).flatMap(flatMapApi::letters).collect(Collectors.toList());
+        List<Stream<String>> list = Arrays.stream(strings).map(FlatMapApi::letters).collect(Collectors.toList());
+        List<String> collect = Arrays.stream(strings).flatMap(FlatMapApi::letters).collect(Collectors.toList());
     }
 
     public static Stream<String> letters(String s){

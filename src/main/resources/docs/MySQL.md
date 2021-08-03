@@ -2,6 +2,28 @@
 
 
 
+#### 指令
+
+```
+-- 查看事务隔离级别
+select @@global.tx_isolation;
+
+-- 查看binlog日志格式
+show variables like 'binlog_format';
+
+--查看表字段及格式
+show FULL COLUMNS FROM table
+
+```
+
+
+
+
+
+
+
+
+
 #### [MySQL事务与MVCC如何实现的隔离级别](https://mp.weixin.qq.com/s/CZHuGT4sKs_QHD_bv3BfAQ)
 
 

@@ -4,21 +4,32 @@
 
 #### 指令
 
-```
+```mysql
 -- 查看事务隔离级别
 select @@global.tx_isolation;
 
 -- 查看binlog日志格式
 show variables like 'binlog_format';
 
---查看表字段及格式
+-- 查看表字段及格式
 show FULL COLUMNS FROM table
 
+-- 查看数据库表大小
+select table_schema,table_name, concat(round(sum(DATA_LENGTH/1024/1024),2),'MB') as data,sum(DATA_LENGTH/1024/1024) as 'MB',sum(DATA_LENGTH/1024/1024/1024) as 'GB' from information_schema.TABLES group by table_schema,table_name order by 4 desc limit 10;
+
+-- 时间间隔
+TIMESTAMPDIFF(SECOND,dtm_accept,dtm_crt) as aSecond,
+TIMESTAMPDIFF(MINUTE,dtm_accept,dtm_crt) as bMinute,
+TIMESTAMPDIFF(HOUR,dtm_accept,dtm_crt) as cHour
 ```
 
 
 
 
+
+在mysql 的innodb引擎中，是允许在唯一索引的字段中出现多个null值的。
+
+根据NULL的定义，NULL表示的是未知，因此两个NULL比较的结果既不相等，也不不等，结果仍然是未知。根据这个定义，多个NULL值的存在应该不违反唯一约束，所以是合理的，在oracel也是如此。
 
 
 

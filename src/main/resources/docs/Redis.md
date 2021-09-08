@@ -529,6 +529,16 @@ redis-sentinel sentinel.conf
 
 #### 杂记
 
+
+
+选择数据库
+
+select index  
+
+select 8 
+
+
+
 String
 
 set key value

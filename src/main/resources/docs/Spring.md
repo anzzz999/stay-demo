@@ -10,7 +10,25 @@
 
    [解决方法](https://blog.csdn.net/li12412414/article/details/81012952)：
 
-   （1） 放在另外的一个类中进行调用    （2）暴露AOP代理对象  （3）往实现类中注入自身。
+   （1） 放在另外的一个类中进行调用    
+
+   
+
+   （2）暴露AOP代理对象  
+
+   ​	例子：
+
+    1. ((ThirdPartyMessageServiceV2) AopContext.currentProxy()).asyncSendMessage(session, messageDto); 
+
+       使用ThreadLocal进行实现，所以开线程时可能会有问题（未认证）
+
+    2. SpringContextUtil.getBean(ThirdPartyMessageServiceV2.class).asyncSendMessage(session, messageDto);（推荐）
+
+        
+
+   （3）往实现类中注入自身。
+
+   
 
 3. **使用多线程**。使用多线程操作数据库（spring 的事务是通过LocalThread来保证线程安全的，事务和当前线程绑定， 搞了多个线程自然会让事务失效）
 

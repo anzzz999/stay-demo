@@ -728,7 +728,7 @@ threadLocal有可能存在内存泄漏，在使用完之后，最好使用remove
 
 > 如果使用强引用
 
-假设threadLocal使用的是强引用，在业务代码中执行`threadLocalInstance==null`操作，以清理掉threadLocal实例的目的，但是因为threadLocalMap的Entry强引用threadLocal，因此在gc的时候进行可达性分析，threadLocal依然可达，对threadLocal并不会进行垃圾回收，这样就无法真正达到业务逻辑的目的，出现逻辑错误
+假设threadLocal使用的是强引用，在业务代码中执行`threadLocalInstance==null`操作，以清理掉threadLocal实例的目的，但是因为threadLocalMap的Entry强引用threadLocal，因此**在gc的时候进行可达性分析，threadLocal依然可达，对threadLocal并不会进行垃圾回收**，这样就无法真正达到业务逻辑的目的，出现逻辑错误
 
 > 如果使用弱引用
 

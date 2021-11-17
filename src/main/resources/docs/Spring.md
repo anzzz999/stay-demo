@@ -268,3 +268,86 @@ SpringMVC 中的 controller 默认是单例的，那么如果不小心在类中�
 10、DispatcherServlet根据View进行渲染视图（即将模型数据填充至视图中）。 
 
 11、DispatcherServlet响应用户。
+
+
+
+### ApplicationEventPublisher / ApplicationEvent
+
+Spring中事件机制：发布ApplicationEventPublisher，实现监听ApplicationEvent。可以使核心业务与子业务进行解耦，也便于后期的业务的扩展。（单机）
+
+https://blog.csdn.net/weixin_43770545/article/details/105971971
+
+
+
+##### **applicationEventPublisher.publishEvent();**
+
+调用 ApplicationEventPublisher的publishEvent 方法对某一事件进行发布。随后Spring容器会把该事件告诉所有的监听者。
+
+例子：
+
+```java
+applicationEventPublisher.publishEvent(
+    new WxPushEvent()
+        .setAppId(appid)
+        .setWxMpXmlMessage(inMessage)
+);
+```
+
+
+
+##### **@EventListener**
+
+**condition** = "#event.operate.name()==‘ADD’"**对监听进行了细化**：监听类型为“新增”的事件
+
+**注意：自定义监听必须交给spring容器管理，否则不起作用哈。如下图加@Component注解就行**
+
+
+
+**方法异步：**
+
+**（可丢弃才能异步）**
+
+**定义方法上方加@Async()注解**就好了。
+
+异步方法可以指定使用某一线程池：如 @Async(“lazyTraceExecutor”)，lazyTraceExecutor是**线程池Bean对象的名字**。
+
+例子：
+
+```java
+@MqEventListener
+public void wxPushEvent(WxPushEvent event) {
+    innerWxPortalService.route(event);
+}
+```
+
+
+
+##### **@TransactionEventListener**
+
+Spring的发布订阅模型实际上并不是异步的，而是同步的来将代码进行解耦。而TransactionEventListener仍是通过这种方式，只不过加入了回调的方式来解决，这样就能够在事务进行Commited，Rollback…等的时候才会去进行Event的处理。
+
+内部实现就是包装@TransactionalEventListener注解的方法，**添加了一个适配器**， ApplicationListenerMethodTransactionalAdapter，内部通过TransactionSynchronizationManager.registerSynchronization **注册一个同步器发布事务时,，记下event，然后注册一个同步器**TransactionSynchronizationEventAdapter，当事务提交后， TransactionSynchronizationManager会回调上面注册的同步适配器，这里注册就是放入到一个ThreadLocal里面，通过它来传递参数。这时，TransactionSynchronizationEventAdapter内部才会真正的去调用hanldeOrderCreatedEvent方法。
+
+其中参数phase默认为AFTER_COMMIT
+
+例子：
+
+```java
+@TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+```
+
+
+
+
+
+### 注解
+
+#### @Primary
+
+@Primary：在众多相同的Bean中，优先使用@Primary注解的Bean。
+
+这个和@Qualifier有点区别，@Qualifier指的是使用哪个Bean进行注入。
+
+例子：
+
+<img src="Spring.assets/image-20211111114057438.png" alt="image-20211111114057438" style="zoom:67%;" />

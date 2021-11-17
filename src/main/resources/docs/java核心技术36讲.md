@@ -7,7 +7,7 @@
 今天我要问你的问题是，谈谈你对Java平台的理解？“Java是解释执行”，这句话正确吗？
 典型回答 
 
-**Java本身是一种面向对象的语言，最显著的特性有两个方面，一是所谓的“书写一次，到处运行”（Write once, run anywhere），能够非常容易地获得跨平台能力；另外就是垃圾收 集（GC, Garbage Collection），Java通过垃圾收集器（Garbage Collector）回收分配内存，大部分情况下，程序员不需要自己操心内存的分配和回收。**
+**Java本身是一种面向对象的语言，最显著的特性有两个方面，一是所谓的“书写一次，到处运行”（Write once, run anywhere），能够非常容易地获得跨平台能力；另外就是垃圾收集（GC, Garbage Collection），Java通过垃圾收集器（Garbage Collector）回收分配内存，大部分情况下，程序员不需要自己操心内存的分配和回收。**
 **我们日常会接触到JRE（Java Runtime Environment）或者JDK（Java Development Kit）。 JRE，也就是Java运行环境，包含了JVM和Java类库，以及一些模块等。 而JDK可以看作是JRE的一个超集，提供了更多工具，比如编译器、各种诊断工具等。**
 **对于“Java是解释执行”这句话，这个说法不太准确。我们开发的Java的源代码，首先通过Javac编译成为字节码（bytecode），然后，在运行时，通过 Java虚拟机（JVM）内嵌的 解释器将字节码转换成为最终的机器码。但是常见的JVM，比如我们大多数情况使用的Oracle JDK提供的Hotspot JVM，都提供了JIT（Just-In-Time）编译器，也就是通常所说的 动态编译器，JIT能够在运行时将热点代码编译成机器码，这种情况下部分热点代码就属于编译执行，而不是解释执行了。**
 
@@ -50,7 +50,7 @@ NoClassDefFoundError产生的原因在于： 如果JVM或者ClassLoader实例尝
 
 （编译期存在，运行期不存在）
 
-### 第3讲 | 谈谈fnal、fnally、 fnalize有什么不同？ 
+### 第3讲 | 谈谈final、finally、 finalize有什么不同？ 
 
 今天，我要问你的是一个经典的Java基础题目，谈谈fnal、fnally、 fnalize有什么不同？
 典型回答 
@@ -76,8 +76,15 @@ NoClassDefFoundError产生的原因在于： 如果JVM或者ClassLoader实例尝
 **不同的引用类型，主要体现的是对象不同的可达性（reachable）状态和对垃圾收集的影响。**
 **所谓强引用（"Strong" Reference），就是我们最常见的普通对象引用，只要还有强引用指向一个对象，就能表明对象还“活着”，垃圾收集器不会碰这种对象。对于一个普通的对 象，如果没有其他的引用关系，只要超过了引用的作用域或者显式地将相应（强）引用赋值为null，就是可以被垃圾收集的了，当然具体回收时机还是要看垃圾收集策略。**
 **软引用（SoftReference），是一种相对强引用弱化一些的引用，可以让对象豁免一些垃圾收集，只有当JVM认为内存不足时，才会去试图回收软引用指向的对象。JVM会确保在抛 出OutOfMemoryError之前，清理软引用指向的对象。软引用通常用来实现内存敏感的缓存，如果还有空闲内存，就可以暂时保留缓存，当内存不足时清理掉，这样就保证了使用缓 存的同时，不会耗尽内存。**
-**弱引用（WeakReference）并不能使对象豁免垃圾收集，仅仅是提供一种访问在弱引用状态下对象的途径。这就可以用来构建一种没有特定约束的关系，比如，维护一种非强制性 的映射关系，如果试图获取时对象还在，就使用它，否则重现实例化。它同样是很多缓存实现的选择。**
+**弱引用（WeakReference）并不能使对象豁免垃圾收集，仅仅是提供一种访问在弱引用状态下对象的途径。这就可以用来构建一种没有特定约束的关系，比如，维护一种非强制性的映射关系，如果试图获取时对象还在，就使用它，否则重现实例化。它同样是很多缓存实现的选择。**
 **对于幻象引用，有时候也翻译成虚引用，你不能通过它访问对象。幻象引用仅仅是提供了一种确保对象被fnalize以后，做某些事情的机制，比如，通常用来做所谓的PostMortem清理机制，我在专栏上一讲中介绍的Java平台自身Cleaner机制等，也有人利用幻象引用监控对象的创建和销毁。**
+
+| 引用类型 | 被垃圾回收时间 | 用途           | 生存时间          |
+| -------- | -------------- | -------------- | ----------------- |
+| 强引用   | 从来不会       | 对象的一般状态 | JVM停止运行时终止 |
+| 软引用   | 在内存不足时   | 对象缓存       | 内存不足时终止    |
+| 弱引用   | 在垃圾回收时   | 对象缓存       | gc运行后终止      |
+| 虚引用   | Unknown        | Unknown        | Unknown           |
 
 
 
@@ -140,9 +147,9 @@ int是基本数据类型，Integer是引用数据类型。Integer可以为null,�
 ### 第8讲 | 对比Vector、ArrayList、LinkedList有何区别？ 
 
 这三者都是实现集合框架中的List，也就是所谓的有序集合，因此具体功能也比较近似，比如都提供按照位置进行定位、添加或者删除的操作，都提供迭代器以遍历其内容等。但因 为具体的设计区别，在行为、性能、线程安全等方面，表现又有很大不同。
-Vector是Java早期提供的线程安全的动态数组，如果不需要线程安全，并不建议选择，毕竟同步是有额外开销的。Vector内部是使用对象数组来保存数据，可以根据需要自动的增加 容量，当数组已满时，会创建新的数组，并拷贝原有数组数据。
-ArrayList是应用更加广泛的动态数组实现，它本身不是线程安全的，所以性能要好很多。与Vector近似，ArrayList也是可以根据需要调整容量，不过两者的调整逻辑有所区 别，Vector在扩容时会提高1倍，而ArrayList则是增加50%。
-LinkedList顾名思义是Java提供的双向链表，所以它不需要像上面两种那样调整容量，它也不是线程安全的。
+**Vector是Java早期提供的线程安全的动态数组，如果不需要线程安全，并不建议选择，毕竟同步是有额外开销的。**Vector内部是使用对象数组来保存数据，可以根据需要自动的增加 容量，当数组已满时，会创建新的数组，并拷贝原有数组数据。
+**ArrayList是应用更加广泛的动态数组实现，它本身不是线程安全的**，所以性能要好很多。与Vector近似，ArrayList也是可以根据需要调整容量，不过两者的调整逻辑有所区 别，Vector在扩容时会提高1倍，而ArrayList则是增加50%。
+**LinkedList顾名思义是Java提供的双向链表**，所以它不需要像上面两种那样调整容量，它也不是线程安全的。
 
 ![image-20210318231003087](java核心技术36讲.assets/image-20210318231003087.png)
 
@@ -151,19 +158,19 @@ LinkedList顾名思义是Java提供的双向链表，所以它不需要像上面
 ### 第9讲 | 对比Hashtable、HashMap、TreeMap有什么不同？ 
 
 Hashtable、HashMap、TreeMap都是最常见的一些Map实现，是以键值对的形式存储和操作数据的容器类型。
-Hashtable是早期Java类库提供的一个哈希表实现，本身是同步的，不支持null键和值，由于同步导致的性能开销，所以已经很少被推荐使用。
-HashMap是应用更加广泛的哈希表实现，行为上大致上与HashTable一致，主要区别在于HashMap不是同步的，支持null键和值等。通常情况下，HashMap进行put或者get操 作，可以达到常数时间的性能，所以它是绝大部分利用键值对存取场景的首选，比如，实现一个用户ID和用户信息对应的运行时存储结构。
-TreeMap则是基于红黑树的一种提供顺序访问的Map，和HashMap不同，它的get、put、remove之类操作都是O（log(n)）的时间复杂度，具体顺序可以由指定 的Comparator来决定，或者根据键的自然顺序来判断
+**Hashtable是早期Java类库提供的一个哈希表实现，本身是同步的，不支持null键和值，由于同步导致的性能开销，所以已经很少被推荐使用。**
+**HashMap是应用更加广泛的哈希表实现，行为上大致上与HashTable一致，主要区别在于HashMap不是同步的，支持null键和值等。**通常情况下，HashMap进行put或者get操 作，可以达到常数时间的性能，所以它是绝大部分利用键值对存取场景的首选，比如，实现一个用户ID和用户信息对应的运行时存储结构。
+**TreeMap则是基于红黑树的一种提供顺序访问的Map**，和HashMap不同，它的get、put、remove之类操作都是O（log(n)）的时间复杂度，**具体顺序可以由指定 的Comparator来决定**，或者根据键的自然顺序来判断
 
 
 
 ### 第10讲 | 如何保证集合是线程安全的? ConcurrentHashMap如何实现高效地线程安全？ 
 
-Java提供了不同层面的线程安全支持。在传统集合框架内部，除了Hashtable等同步容器，还提供了所谓的同步包装器（Synchronized Wrapper），我们可以调用Collections工 具类提供的包装方法，来获取一个同步的包装容器（如Collections.synchronizedMap），但是它们都是利用非常粗粒度的同步方式，在高并发情况下，性能比较低下。
-另外，更加普遍的选择是利用并发包提供的线程安全容器类，它提供了：
-各种并发容器，比如ConcurrentHashMap、CopyOnWriteArrayList。
-各种线程安全队列（Queue/Deque），如ArrayBlockingQueue、SynchronousQueue。
-各种有序容器的线程安全版本等。
+Java提供了不同层面的线程安全支持。在传统集合框架内部，除了**Hashtable等同步容器**，还提供了所谓的同步包装器（Synchronized Wrapper），我们可以调用Collections工 具类提供的包装方法，来获取一个**同步的包装容器**（如Collections.synchronizedMap），但是它们都是利用非常粗粒度的同步方式，在高并发情况下，性能比较低下。
+另外，更加普遍的选择是**利用并发包提供的线程安全容器类**，它提供了：
+各种并发容器，**比如ConcurrentHashMap、CopyOnWriteArrayList。**
+**各种线程安全队列（Queue/Deque），如ArrayBlockingQueue、SynchronousQueue。**
+**各种有序容器的线程安全版本等。**
 具体保证线程安全的方式，包括有从简单的synchronize方式，到基于更加精细化的，比如基于分离锁实现的ConcurrentHashMap等并发实现等。具体选择要看开发的场景需求， 总体来说，并发包内提供的容器通用场景，远优于早期的简单同步实现。
 
 下面我来对比一下，在Java 8和之后的版本中，ConcurrentHashMap发生了哪些变化呢？
@@ -340,9 +347,9 @@ return target; }
 2. **使用transferTo等机制，减少上下文切换和额外IO操作。** 
 3. **尽量减少不必要的转换过程，比如编解码；对象序列化和反序列化，比如操作文本文件或者网络通信，如果不是过程中需要使用文本信息，可以考虑不要将二进制信息转换成字符 串，直接传输二进制信息。**
 
-#### 3.掌握NIO Bufer 
+#### 3.掌握NIO Buffer 
 
-我在上一讲提到Bufer是NIO操作数据的基本工具，**Java为每种原始数据类型都提供了相应的Bufer实现（布尔除外）**，所以掌握和使用Bufer是十分必要的，尤其是涉及Direct Bufer等使用，因为其在垃圾收集等方面的特殊性，更要重点掌握。 
+我在上一讲提到Buffer是NIO操作数据的基本工具，**Java为每种原始数据类型都提供了相应的Bufer实现（布尔除外）**，所以掌握和使用Bufer是十分必要的，尤其是涉及Direct Bufer等使用，因为其在垃圾收集等方面的特殊性，更要重点掌握。 
 
 <img src="java核心技术36讲.assets/image-20210808232411849.png" alt="image-20210808232411849" style="zoom:80%;" />
 
@@ -362,15 +369,15 @@ mark，记录上一次postion的位置，默认是0，算是一个便利性的�
 
 
 
-#### 4.Direct Bufer和垃圾收集
+#### 4.Direct Buffer和垃圾收集
 
-我这里重点介绍两种特别的Bufer。 
+我这里重点介绍两种特别的Buffer。 
 
-**Direct Bufer**：如果我们看Bufer的方法定义，你会发现它定义了isDirect()方法，返回当前Bufer是否是Direct类型。这是因为Java提供了堆内和堆外（Direct）Bufer，我 们可以以它的allocate或者allocateDirect方法直接创建。 
+**Direct Buffer**：如果我们看Buffer的方法定义，你会发现它定义了isDirect()方法，返回当前Bufer是否是Direct类型。这是因为Java提供了堆内和堆外（Direct）Buffer，我 们可以以它的allocate或者allocateDirect方法直接创建。 
 
 **MappedByteBufer**：**它将文件按照指定大小直接映射为内存区域**，当程序访问这个内存区域时将直接操作这块儿文件数据，省去了将数据从内核空间向用户空间传输的损耗。我 们可以使用FileChannel.map创建MappedByteBufer，它本质上也是种Direct Bufer。
 
-在实际使用中，Java会尽量对Direct Bufer仅做本地IO操作，对于很多大数据量的IO密集操作，可能会带来非常大的性能优势，因为： **Direct Bufer生命周期内内存地址都不会再发生更改，进而内核可以安全地对其进行访问，很多IO操作会很高效。 **
+在实际使用中，Java会尽量对Direct Bufer仅做本地IO操作，对于很多大数据量的IO密集操作，可能会带来非常大的性能优势，因为： **Direct Buffer生命周期内内存地址都不会再发生更改，进而内核可以安全地对其进行访问，很多IO操作会很高效。 **
 
 **减少了堆内对象存储的可能额外维护工作，所以访问效率可能有所提高。** 
 
@@ -380,16 +387,16 @@ mark，记录上一次postion的位置，默认是0，算是一个便利性的�
  -XX:MaxDirectMemorySize=512M 
 ```
 
-从参数设置和内存问题排查角度来看，这意味着我们在计算Java可以使用的内存大小的时候，不能只考虑堆的需要，还有Direct Bufer等一系列堆外因素。如果出现内存不足，堆外内存占用也是一种可能性。 另外，**大多数垃圾收集过程中，都不会主动收集Direct Bufer**，它的垃圾收集过程，就是基于我在专栏前面所介绍的Cleaner（一个内部实现）和幻象引用 （PhantomReference）机制，其本身不是public类型，内部实现了一个Deallocator负责销毁的逻辑。**对它的销毁往往要拖到full GC的时候，所以使用不当很容易导 致OutOfMemoryError**。 
+从参数设置和内存问题排查角度来看，这意味着我们在计算Java可以使用的内存大小的时候，不能只考虑堆的需要，还有Direct Bufer等一系列堆外因素。如果出现内存不足，堆外内存占用也是一种可能性。 另外，**大多数垃圾收集过程中，都不会主动收集Direct Buffer**，它的垃圾收集过程，就是基于我在专栏前面所介绍的Cleaner（一个内部实现）和幻象引用 （PhantomReference）机制，其本身不是public类型，内部实现了一个Deallocator负责销毁的逻辑。**对它的销毁往往要拖到full GC的时候，所以使用不当很容易导致OutOfMemoryError**。 
 
 对于Direct Bufer的回收，我有几个建议： 
 
 1. 在应用程序中，显式地调用System.gc()来强制触发。 
-2. 另外一种思路是，在大量使用Direct Bufer的部分框架中，框架会自己在程序中调用释放方法，Netty就是这么做的，有兴趣可以参考其实现（PlatformDependent0）。 重复使用Direct Bufer。
+2. 另外一种思路是，在大量使用Direct Buffer的部分框架中，框架会自己在程序中调用释放方法，Netty就是这么做的，有兴趣可以参考其实现（PlatformDependent0）。 重复使用Direct Buffer。
 
 #### 5.跟踪和诊断Direct Bufer内存占用？ 
 
-因为通常的垃圾收集日志等记录，并不包含Direct Bufer等信息，所以Direct Bufer内存诊断也是个比较头疼的事情。幸好，在JDK 8之后的版本，我们可以方便地使用Native Memory Tracking（NMT）特性来进行诊断，你可以在程序启动时加上下面参数： 
+因为通常的垃圾收集日志等记录，并不包含Direct Bufer等信息，所以Direct Buffer内存诊断也是个比较头疼的事情。幸好，在JDK 8之后的版本，我们可以方便地使用Native Memory Tracking（NMT）特性来进行诊断，你可以在程序启动时加上下面参数： 
 
 ```
 -XX:NativeMemoryTracking={summary|detail} 
@@ -413,7 +420,7 @@ mark，记录上一次postion的位置，默认是0，算是一个便利性的�
  jcmd  VM.native_memory detail.dif
 ```
 
-**我们可以在Internal部分发现Direct Bufer内存使用的信息，这是因为其底层实际是利用unsafe_allocatememory。严格说，这不是JVM内部使用的内存**，所以在JDK 11以后， 其实它是归类在other部分里。
+**我们可以在Internal部分发现Direct Buffer内存使用的信息，这是因为其底层实际是利用unsafe_allocatememory。严格说，这不是JVM内部使用的内存**，所以在JDK 11以后， 其实它是归类在other部分里。
 
 
 
@@ -425,7 +432,7 @@ mark，记录上一次postion的位置，默认是0，算是一个便利性的�
 
 接口和抽象类是Java面向对象设计的两个基础机制。 
 
-**接口是对行为的抽象，它是抽象方法的集合，利用接口可以达到API定义和实现分离的目的**。接口，不能实例化；不能包含任何非常量成员，任何feld都是隐含着public static fnal的意义；同时，没有非静态方法实现，也就是说要么是抽象方法，要么是静态方法。Java标准类库中，定义了非常多的接口，比如java.util.List。 
+**接口是对行为的抽象，它是抽象方法的集合，利用接口可以达到API定义和实现分离的目的**。接口，不能实例化；不能包含任何非常量成员，任何field都是隐含着public static fnal的意义；同时，没有非静态方法实现，也就是说要么是抽象方法，要么是静态方法。Java标准类库中，定义了非常多的接口，比如java.util.List。 
 
 **抽象类是不能实例化的类，用abstract关键字修饰class，其目的主要是代码重用。**除了不能实例化，形式上和一般的Java类并没有太大区别，可以有一个或者多个抽象方法，也可 以没有抽象方法。抽象类大多用于抽取相关Java类的共用方法实现或者是共同成员变量，然后通过继承的方式达到代码复用的目的。Java标准库中，比如collection框架，很多通用 部分就被抽取成为抽象类，例如java.util.AbstractList。 
 
@@ -511,7 +518,7 @@ mark，记录上一次postion的位置，默认是0，算是一个便利性的�
 
 大致按照模式的应用目标分类，**设计模式可以分为创建型模式、结构型模式和行为型模式**。 
 
-**创建型模式，是对对象创建过程的各种问题和解决方案的总结**，包括各种工厂模式（Factory、Abstract Factory）、单例模式（Singleton）、构建器模式（Builder）、原型模 式（ProtoType）。
+**创建型模式，是对对象创建过程的各种问题和解决方案的总结**，包括各种工厂模式（Factory、Abstract Factory）、单例模式（Singleton）、构建器模式（Builder）、原型模式（ProtoType）。
 
  **结构型模式，是针对软件设计结构的总结，关注于类、对象继承、组合方式的实践经验**。常见的结构型模式，包括桥接模式（Bridge）、适配器模式（Adapter）、装饰者模式 （Decorator）、代理模式（Proxy）、组合模式（Composite）、外观模式（Facade）、享元模式（Flyweight）等。
 
@@ -562,23 +569,23 @@ InputStream是一个抽象类，标准类库中提供了FileInputStream、ByteAr
 
 #### 1.典型回答 
 
-synchronized是Java内建的同步机制，所以也有人称其为Intrinsic Locking，它提供了互斥的语义和可见性，当一个线程已经获取当前锁时，其他试图获取的线程只能等待或者阻 塞在那里。 在Java 5以前，synchronized是仅有的同步手段，在代码中， synchronized可以用来修饰方法，也可以使用在特定的代码块儿上，本质上synchronized方法等同于把方法全部语 句用synchronized块包起来。 **ReentrantLock，通常翻译为再入锁，是Java 5提供的锁实现，它的语义和synchronized基本相同。再入锁通过代码直接调用lock()方法获取，代码书写也更加灵活。与此同 时，ReentrantLock提供了很多实用的方法，能够实现很多synchronized无法做到的细节控制，比如可以控制fairness，也就是公平性，或者利用定义条件等**。但是，编码中也需 要注意，必须要明确调用unlock()方法释放，不然就会一直持有该锁。 synchronized和ReentrantLock的性能不能一概而论，早期版本synchronized在很多场景下性能相差较大，在后续版本进行了较多改进，在低竞争场景中表现可能优 于ReentrantLock。
+synchronized是Java内建的同步机制，所以也有人称其为Intrinsic Locking，它提供了互斥的语义和可见性，当一个线程已经获取当前锁时，其他试图获取的线程只能等待或者阻 塞在那里。 在Java 5以前，synchronized是仅有的同步手段，在代码中， synchronized可以用来修饰方法，也可以使用在特定的代码块儿上，本质上synchronized方法等同于把方法全部语 句用synchronized块包起来。 **ReentrantLock，通常翻译为再入锁，是Java 5提供的锁实现，它的语义和synchronized基本相同。再入锁通过代码直接调用lock()方法获取，代码书写也更加灵活。与此同时，ReentrantLock提供了很多实用的方法，能够实现很多synchronized无法做到的细节控制，比如可以控制fairness，也就是公平性，或者利用定义条件等**。但是，编码中也需 要注意，必须要明确调用unlock()方法释放，不然就会一直持有该锁。 synchronized和ReentrantLock的性能不能一概而论，早期版本synchronized在很多场景下性能相差较大，在后续版本进行了较多改进，在低竞争场景中表现可能优 于ReentrantLock。
 
 
 
 2.
 
-线程安全需要保证几个基本特性： 
+**线程安全需要保证几个基本特性**： 
 
-原子性，简单说就是相关操作不会中途被其他线程干扰，一般通过同步机制实现。 
+**原子性**，简单说就是相关操作不会中途被其他线程干扰，一般通过同步机制实现。 
 
-可见性，是一个线程修改了某个共享变量，其状态能够立即被其他线程知晓，通常被解释为将线程本地状态反映到主内存上，volatile就是负责保证可见性的。 
+**可见性**，是一个线程修改了某个共享变量，其状态能够立即被其他线程知晓，通常被解释为将线程本地状态反映到主内存上，volatile就是负责保证可见性的。 
 
-有序性，是保证线程内串行语义，避免指令重排等。
+**有序性**，是保证线程内串行语义，避免指令重排等。
 
 所谓的公平性是指在竞争场景中，当公平性为真时，会倾向于将锁赋予等待时间最久的线程。公平性是减少线程“饥饿”（个别线程长期等待锁，但始终无法获取）情况发生的一 个办法。 如果使用synchronized，我们根本无法进行公平性的选择，其永远是不公平的，这也是主流操作系统线程调度的选择。**通用场景中，公平性未必有想象中的那么重要，Java默认的调 度策略很少会导致 “饥饿”发生。与此同时，若要保证公平性则会引入额外开销，自然会导致一定的吞吐量下降。所以，我建议只有当你的程序确实有公平性需要的时候，才有必要指 定它**。
 
- 我们再从日常编码的角度学习下再入锁。为保证锁释放，每一个lock()动作，我建议都立即对应一个try-catch-fnally，典型的代码结构如下，这是个良好的习惯。 
+ 我们再从日常编码的角度学习下再入锁。为保证锁释放，每一个lock()动作，我建议都立即对应一个try-catch-finally，典型的代码结构如下，这是个良好的习惯。 
 
 ```
 ReentrantLock fairLock = new ReentrantLock(true);// 这里是演示创建公平锁，一般情况不需要。
@@ -666,13 +673,13 @@ notEmpty.signal();
 
 ```
 
- **通过signal/await的组合，完成了条件判断和通知等待线程，非常顺畅就完成了状态流转**。注意，signal和await成对调用非常重要，不然假设只有await动作，线程会一直等待直到 被打断（interrupt）。 从性能角度，synchronized早期的实现比较低效，对比ReentrantLock，大多数场景性能都相差较大。但是在Java 6中对其进行了非常多的改进，可以参考性能对比，**在高竞争情 况下，ReentrantLock仍然有一定优势**。我在下一讲进行详细分析，会更有助于理解性能差异产生的内在原因。**在大多数情况下，无需纠结于性能，还是考虑代码书写结构的便利性、可维护性等。**
+ **通过signal/await的组合，完成了条件判断和通知等待线程，非常顺畅就完成了状态流转**。注意，signal和await成对调用非常重要，不然假设只有await动作，线程会一直等待直到 被打断（interrupt）。 从性能角度，synchronized早期的实现比较低效，对比ReentrantLock，大多数场景性能都相差较大。但是在Java 6中对其进行了非常多的改进，可以参考性能对比，**在高竞争情况下，ReentrantLock仍然有一定优势**。我在下一讲进行详细分析，会更有助于理解性能差异产生的内在原因。**在大多数情况下，无需纠结于性能，还是考虑代码书写结构的便利性、可维护性等。**
 
 在使用ReentrantLock类的时，一定要注意三点： 
 
-在finally中释放锁，目的是保证在获取锁之后，最终能够被释放 
+**在finally中释放锁**，目的是保证在获取锁之后，最终能够被释放 
 
-不要将获取锁的过程写在try块内，因为如果在获取锁时发生了异常，异常抛出的同时，也会导致锁无故被释放。
+**不要将获取锁的过程写在try块内**，因为如果在获取锁时发生了异常，异常抛出的同时，也会导致锁无故被释放。
 
  ReentrantLock提供了一个newCondition的方法，以便用户在同一锁的情况下可以根据不同的情况执行等待或唤醒的动作。
 
@@ -854,7 +861,7 @@ CyclicBarrier的基本操作组合，则就是await，当所有的伙伴（parti
 
 ![image-20210825221150188](java核心技术36讲.assets/image-20210825221150188.png)
 
-关于两个CopyOnWrite容器，其实CopyOnWriteArraySet是通过包装了CopyOnWriteArrayList来实现的，所以在学习时，我们可以专注于理解一种。 首先，CopyOnWrite到底是什么意思呢？它的原理是，任何修改操作，如add、set、remove，都会拷贝原数组，修改后替换原来的数组，通过这种防御性的方式，实现另类的线 程安全。所以这种数据结构，相对比较适合读多写少的操作，不然修改的开销还是非常明显的。
+关于两个CopyOnWrite容器，其实CopyOnWriteArraySet是通过包装了CopyOnWriteArrayList来实现的，所以在学习时，我们可以专注于理解一种。 首先，CopyOnWrite到底是什么意思呢？它的原理是，任何修改操作，如add、set、remove，都会拷贝原数组，修改后替换原来的数组，通过这种防御性的方式，实现另类的线 程安全。所以这种数据结构，相对**比较适合读多写少的操作**，不然修改的开销还是非常明显的。
 
 
 
@@ -880,7 +887,7 @@ Concurrent类型没有类似CopyOnWrite之类容器相对较重的修改开销�
 
 ![image-20210825225218003](java核心技术36讲.assets/image-20210825225218003.png)
 
-我们可以从不同的角度进行分类，从基本的数据结构的角度分析，有两个特别的Deque实现，ConcurrentLinkedDeque和LinkedBlockingDeque。**Deque的侧重点是支持对队列 头尾都进行插入和删除**，所以提供了特定的方法，如: 
+我们可以从不同的角度进行分类，从基本的数据结构的角度分析，有两个特别的Deque实现，ConcurrentLinkedDeque和LinkedBlockingDeque。**Deque的侧重点是支持对队列头尾都进行插入和删除**，所以提供了特定的方法，如: 
 
 尾部插入时需要的addLast(e)、oferLast(e)。 尾部删除所需要的removeLast()、pollLast()。 
 
@@ -906,7 +913,7 @@ SynchronousQueue，这是一个非常奇葩的队列实现，每个删除操作�
 
 **从空间利用角度**，数组结构的ArrayBlockingQueue要比LinkedBlockingQueue紧凑，因为其不需要创建所谓节点，但是其初始分配阶段就需要一段连续的空间，所以初始内存 需求更大。 
 
-通用场景中，LinkedBlockingQueue的吞吐量一般优于ArrayBlockingQueue，因为它实现了更加细粒度的锁操作。 ArrayBlockingQueue实现比较简单，性能更好预测，属于表现稳定的“选手”。 
+**通用场景中，LinkedBlockingQueue的吞吐量一般优于ArrayBlockingQueue，因为它实现了更加细粒度的锁操作。** **ArrayBlockingQueue实现比较简单，性能更好预测，属于表现稳定的“选手”。** 
 
 如果我们需要实现的是两个线程之间接力性（handof）的场景，按照专栏上一讲的例子，你可能会选择CountDownLatch，但是SynchronousQueue也是完美符合这种场景 的，而且线程间协调和数据传输统一起来，代码更加规范。 可能令人意外的是，很多时候SynchronousQueue的性能表现，往往大大超过其他实现，尤其是在队列元素较小的场景。
 

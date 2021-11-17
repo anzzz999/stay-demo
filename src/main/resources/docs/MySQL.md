@@ -25,6 +25,39 @@ TIMESTAMPDIFF(HOUR,dtm_accept,dtm_crt) as cHour
 
 
 
+#### 函数
+
+```
+ group_concat()函数
+ 功能：将group by产生的同一个分组中的值连接起来 返回一个字符串结果
+ 语法：group_concat([distinct]要连接的字段 [order by 排序字段 asc/desc][separator'分隔符'])
+ 说明：通过使用distinct可以排除重复值 
+ 	  如果希望对结果中的值进行排序 可以使用order by子句 
+ 	  separator是一个字符串值缺，省为一个逗号
+
+concat()函数
+ 功能：将多个字符串拼接成一个字符串
+ 语法：concat(str1,str2,...)
+ 返回结果为连接参数产生的字符串 如果有任何一个参数为NULL 则返回值NULL
+ 
+ concat_ws()函数
+ 功能：一次性指定分隔符
+ 语法：concat_ws(separator,str1,str2,...)
+ 说明：第一个参数指定分隔符 分隔符不能为空 如果为NULL 则返回值NULL
+ 
+ left() 函数
+ 功能：返回具有指定长度的字符串的左边部分
+ 语法：LEFT(Str,length);
+ 说明：第一个参数指定字符串，第二个参数指定截取长度
+ 
+ DATE_FORMAT() 函数
+ 功能：用于以不同的格式显示日期/时间数据
+ 语法： DATE_FORMAT(date,format)
+ 说明：date 参数是合法的日期。format 规定日期/时间的输出格式。
+ 例子：DATE_FORMAT(a.create_time,'%Y%m%d')
+
+```
+
 
 
 在mysql 的innodb引擎中，是允许在唯一索引的字段中出现多个null值的。

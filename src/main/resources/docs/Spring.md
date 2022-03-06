@@ -77,7 +77,7 @@ Spring 是通过提前暴露 bean 的引用来解决的。
 
 平时自己怎么解决循环依赖的？
 
-1.避免模块间的互相依赖，比如Service互相依赖，可以将不必要的Service去掉，换成mapper层
+1.避免模块间的互相依赖，比如Service互相依赖，可以将不必要的Service去掉，换成mapper层或者抽多个bizService/poService
 
 2.使用@Lazy注解，进行懒加载。
 
@@ -338,6 +338,22 @@ Spring的发布订阅模型实际上并不是异步的，而是同步的来将�
 
 
 
+### @PostConstruct、@DependsOn、@Order注解
+
+`@Order`注解的作用是定义Spring IOC容器中Bean的执行顺序的优先级
+
+
+
+@PostConstruct 注解可以用于**修饰一个非静态的、返回值类型为 void 的方法**（eg：myInit()）。
+该方法（myInit()）**会在服务器加载Servlet的时候被执行，且只会被执行一次**！
+**该方法（myInit()）的调用执行在构造函数之后，在Servlet的 init() 方法之前，在Servlet的 destroy()方法之后。**
+
+
+
+@DependsOn注解的作用
+该注解的作用顾名思义，就是 “**谁依赖谁**”。
+假如在Test02类上加上@DependsOn(value = "test01")，那么就说明Test02在加载时，要依赖于Test01，Spring IOC 容器会优先加载Test01，然后再加载Test02。
+
 
 
 ### 注解
@@ -351,3 +367,134 @@ Spring的发布订阅模型实际上并不是异步的，而是同步的来将�
 例子：
 
 <img src="Spring.assets/image-20211111114057438.png" alt="image-20211111114057438" style="zoom:67%;" />
+
+
+
+#### @Bean
+
+用于注册Bean的注解的有那么多个（如@Component  等），为何还要出现@Bean注解？
+
+原因很简单：类似@Component , @Repository , @ Controller , @Service, @Configration 这些注册Bean的注解存在局限性，只能局限作用于自己编写的类，如果是一个jar包第三方库要加入IOC容器的话，这些注解就手无缚鸡之力了，是的，@Bean注解就可以做到这一点！当然**除了@Bean注解能做到还有@Import也能把第三方库中的类实例交给spring管理**，而且@Import更加方便快捷，只是@Import注解并不在本篇范围内，这里就不再概述。
+
+@Bean注解总结
+1、Spring的@Bean注解用于告诉方法，产生一个Bean对象，然后这个Bean对象交给Spring管理。 产生这个Bean对象的方法Spring只会调用一次，随后这个Spring将会将这个Bean对象放在自己的IOC容器中。
+
+2、@Component , @Repository , @ Controller , @Service 这些注解只局限于自己编写的类，而@Bean注解能把第三方库中的类实例加入IOC容器中并交给spring管理。
+
+3、@Bean注解的另一个好处就是能够动态获取一个Bean对象，能够根据环境不同得到不同的Bean对象。
+
+4、记住，@Bean就放在方法上，就是让方法去产生一个Bean，然后交给Spring容器，剩下的你就别管了。
+
+
+
+#### @Import
+
+https://blog.csdn.net/mamamalululu00000000/article/details/86711079
+
+1、**@Import只能用在类上** ，@Import通过快速导入的方式实现把实例加入spring的IOC容器中
+
+2、加入IOC容器的方式有很多种，@Import注解就相对很牛皮了，**@Import注解可以用于导入第三方包** ，当然@Bean注解也可以，但是@Import注解快速导入的方式更加便捷
+
+3、@Import注解的三种使用方式总结
+
+第一种用法：`@Import`（{ 要导入的容器中的组件 } ）：容器会自动注册这个组件，**id默认是全类名**
+
+第二种用法：`ImportSelector`：返回需要导入的组件的全类名数组，springboot底层用的特别多【**重点** 】
+
+第三种用法：`ImportBeanDefinitionRegistrar`：手动注册bean到容器
+
+**以上三种用法方式皆可混合在一个@Import中使用，特别注意第一种和第二种都是以全类名的方式注册，而第三中可自定义方式。**
+
+@Import注解本身在springboot中用的很多，特别是其中的第二种用法ImportSelector方式在springboot中使用的特别多，尤其要掌握！
+
+
+
+#### @EnableConfigurationProperties
+
+https://www.jianshu.com/p/7f54da1cb2eb
+
+**作用：**
+
+@EnableConfigurationProperties注解的作用是：使使用 **@ConfigurationProperties** 注解的类生效。
+
+**说明：**
+
+**如果一个配置类只配置@ConfigurationProperties注解，而没有使用@Component，那么在IOC容器中是获取不到properties 配置文件转化的bean。说白了 @EnableConfigurationProperties 相当于把使用  @ConfigurationProperties 的类进行了一次注入。**
+ 测试发现 @ConfigurationProperties 与 @EnableConfigurationProperties 关系特别大。
+
+测试证明：
+ `@ConfigurationProperties` 与 `@EnableConfigurationProperties` 的关系。
+
+`@EnableConfigurationProperties` 文档中解释：
+ 当`@EnableConfigurationProperties`注解应用到你的`@Configuration`时， 任何被`@ConfigurationProperties`注解的beans将自动被Environment属性配置。 这种风格的配置特别适合与SpringApplication的外部YAML配置进行配合使用。
+
+
+1.使用 `@EnableConfigurationProperties` 进行注册
+
+2.不使用 `@EnableConfigurationProperties` 进行注册，使用 `@Component` 注册 （如果@ConfigurationProperties是在第三方包中，那么@component是不能注入到容器的。只有@EnableConfigurationProperties才可以注入到容器。）（但是使用@Import注解一样能够将bean注册到容器中）
+
+
+
+#### @ConditionalOnProperty
+
+在spring boot中有时候需要控制配置类是否生效,可以使用@ConditionalOnProperty注解来控制@[Configuration](https://so.csdn.net/so/search?q=Configuration&spm=1001.2101.3001.7020)是否生效.
+
+**配置类代码:**
+
+```java
+@Configuration
+@ConditionalOnProperty(prefix = "filter",name = "loginFilter",havingValue = "true", matchIfMissing = true)
+public class FilterConfig {
+	//prefix为配置文件中的前缀,
+	//name为配置的名字
+	//havingValue是与配置的值对比值,当两个值相同返回true,配置类生效.
+    @Bean
+    public FilterRegistrationBean getFilterRegistration() {
+        FilterRegistrationBean filterRegistration  = new FilterRegistrationBean(new LoginFilter());
+        filterRegistration.addUrlPatterns("/*");
+        return filterRegistration;
+    }
+}
+
+```
+
+**配置文件中的代码:**
+
+```
+filter.loginFilter=true
+```
+
+
+
+
+
+### 接口
+
+#### ApplicationContextAware 
+
+　看到—Aware就知道是干什么的了，就是属性注入的。`ApplicationContextAware` 通过它Spring容器会自动把上下文环境对象调用`ApplicationContextAware`接口中的`setApplicationContext`方法。
+
+我们在`ApplicationContextAware`的实现类中，就可以**通过这个上下文环境对象得到Spring容器中的Bean。**
+
+例子：
+
+```java
+public class RedisRateLimiterAspect implements ApplicationContextAware {
+
+	// ApplicationContextAware会自动注入上下文
+	private  ApplicationContext applicationContext;
+
+}
+```
+
+
+
+
+
+### jackson子类型反序列化问题
+
+```json
+{"otaWebhook":{"@class":"com.locals.hudson.ota.airbnb.request.AirbnbWebhookRequest"}
+}
+```
+

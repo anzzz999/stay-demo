@@ -243,7 +243,7 @@ SpringMVC 中的 controller 默认是单例的，那么如果不小心在类中�
 
 
 
-### SpringMVC
+#### SpringMVC
 
 ![img](https://img-blog.csdnimg.cn/20190408151658886.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2Zsb2F0aW5nX2RyZWFtaW5n,size_16,color_FFFFFF,t_70)
 
@@ -498,3 +498,22 @@ public class RedisRateLimiterAspect implements ApplicationContextAware {
 }
 ```
 
+
+
+
+
+### Starter原理
+
+原理
+一个公用是starter我们只需要引入pom文件，SpringBoot就会进行自动配置。那么SpringBoot是如何知道要实例化哪些类，并进行简单配置呢？
+
+首先，**SpringBoot在启动时会去依赖的Starter包中寻找resources/META-INF/spring.factories 文件，然后根据文件中配置的Jar包去扫描项目所依赖的Jar包**，这类似于 Java 的 SPI 机制。
+
+第二步**，根据 spring.factories配置加载AutoConfigure类**，读取以**EnableAutoConfiguration**的全限定类名对应的值，作为候选配置类。
+
+第三步，自动配置类可能会再导入一些依赖（比如@Import），或者给出一些配置条件，并且会通过@Bean注解把该组件所包含的组件注入到spring容器中以供使用。
+第四步，自动配置类还可能会绑定xxxProperties配置文件类，该类又会和应用程序中的application.properties中的指定前缀绑定。第3步注入组件的时候，组件可能还会获取配置文件类中的内容，所以用户可以在application.properties修改指定配置，来制定自己的个性化服务。
+
+最后，根据 @Conditional注解的条件，进行自动配置并将Bean注入Spring Context 上下文当中。
+
+我们也可以使用@ImportAutoConfiguration({MyServiceAutoConfiguration.class}) 指定自动配置哪些类。

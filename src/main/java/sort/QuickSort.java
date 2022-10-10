@@ -56,7 +56,7 @@ public class QuickSort {
         int[] num = new int[10000];
         Random random = new Random();
         for (int i = 0; i < num.length; i++) {
-            num[i] = random.nextInt(1000);
+            num[i] = random.nextInt(10000);
         }
         System.out.println("orgin array:" + Arrays.toString(num));
         quickSort(num, 0 , num.length - 1);

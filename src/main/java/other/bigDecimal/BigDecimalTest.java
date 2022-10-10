@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
+import static java.math.RoundingMode.HALF_UP;
+
 /**
  * @author zhanmingwei
  * <p>
@@ -57,7 +59,7 @@ public class BigDecimalTest {
         BigDecimal b = new BigDecimal("3.0");
 //        a.divide(b);
 // ArithmeticException 如果在除法（divide）运算过程中，如果商是一个无限小数（0.333…），而操作的结果预期是一个精确的数字，那么将会抛出ArithmeticException异常
-        System.out.println(a.divide(b, 2, RoundingMode.HALF_UP));
+        System.out.println(a.divide(b, 2, HALF_UP));
         // 结论：在使用BigDecimal进行（所有）运算时，一定要明确指定精度和舍入模式。
     }
 
@@ -74,6 +76,15 @@ public class BigDecimalTest {
 
 
     }
+
+    @Test
+    public void test5() {
+        BigDecimal goodDetailPrice =
+                BigDecimal.valueOf(20000L)
+                        .divide(BigDecimal.valueOf(3), 0, BigDecimal.ROUND_HALF_UP);
+        System.out.println(goodDetailPrice);
+    }
+
 }
 
 

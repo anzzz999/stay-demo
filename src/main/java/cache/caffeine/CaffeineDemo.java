@@ -7,6 +7,9 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Group;
+import org.openjdk.jmh.annotations.GroupThreads;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -115,6 +118,25 @@ public class CaffeineDemo {
         // 异步转同步
         LoadingCache<String, String> synchronousCache = asyncLoadingCache.synchronous();
         log.info("当前cache值为：{}", synchronousCache);
+    }
+
+    @Test
+    @Benchmark
+    @Group("read_only") @GroupThreads(8)
+    public void test3(){
+        int count = 25_000_000;
+        Cache<String, String> cache = Caffeine.newBuilder()
+                .maximumSize(1000)
+                .expireAfterWrite(120, TimeUnit.SECONDS)
+                .build();
+        cache.put("hello", "world");
+        long startTime = System.currentTimeMillis();
+        for (int i = 0; i < count; i++) {
+            cache.getIfPresent("hello");
+        }
+        long endTime = System.currentTimeMillis();
+        long l = endTime - startTime;
+        log.info("{}次，花费{}时间", count, l);
     }
 
 }

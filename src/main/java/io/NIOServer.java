@@ -35,6 +35,7 @@ public class NIOServer extends Thread {
 //        return serverSocket.getLocalPort();
 //    }
 
+    @Override
     public void run() {
         try (Selector selector = Selector.open();
              ServerSocketChannel serverSocket = ServerSocketChannel.open();) {// 创建Selector和Channel
@@ -73,7 +74,7 @@ public class NIOServer extends Thread {
                 BufferedReader buferedReader = new BufferedReader(new InputStreamReader(client.getInputStream()));
                 buferedReader.lines().forEach(s -> System.out.println(s));
             }
-            Thread.sleep(1000);
+            Thread.sleep(3000);
         }
     }
 }

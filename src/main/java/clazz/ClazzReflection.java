@@ -1,5 +1,7 @@
 package clazz;
 
+import lombok.Data;
+import lombok.experimental.Accessors;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -8,7 +10,13 @@ import org.junit.jupiter.api.Test;
 public class ClazzReflection {
 
 
-    public static class User{}
+    @Data
+    @Accessors(chain = true)
+    public static class User{
+        private Long id;
+        private String name;
+        private Integer age;
+    }
 
     @Test
     public void Test1(){

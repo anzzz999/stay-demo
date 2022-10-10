@@ -11,6 +11,7 @@ public class AtomicIntegerDemo {
 
     public static void main(String[] args) {
         System.out.println(atomicInteger.getAndAdd(1));
+        System.out.println(atomicInteger.getAndAdd(1));
         System.out.println(atomicInteger.addAndGet(1));
         System.out.println(atomicInteger.get());
     }

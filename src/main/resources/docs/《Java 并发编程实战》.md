@@ -380,7 +380,7 @@ class Account {
     }
   }
  
-  // 更改密码
+   // 更改密码
   void updatePassword(String pw){
     synchronized(pwLock) {
       this.password = pw;
@@ -1515,3 +1515,726 @@ pool.exec(t -> {
 
 
 
+
+
+
+
+### 17 | ReadWriteLock：如何快速实现一个完备的缓存？
+
+前面我们介绍了**管程和信号量这两个同步原语在 Java 语言中的实现，理论上用这两个同步原语中任何一个都可以解决所有的并发问题**。那 Java SDK 并发包里为什么还有很多其他的工具类呢？原因很简单：**分场景优化性能，提升易用性**。
+
+#### 场景
+
+今天我们就介绍一种非常普遍的**并发场景：读多写少场景**。缓存元数据、缓存基础数据等，这就是一种典型的读多写少应用场景。缓存之所以能提升性能，一个重要的条件就是缓存的数据一定是读多写少的。
+
+**针对读多写少这种并发场景，Java SDK 并发包提供了读写锁——ReadWriteLock**，非常容易使用，并且性能很好。那什么是读写锁呢？读写锁，并不是 Java 语言特有的，而是一个广为使用的通用技术，**所有的读写锁都遵守以下三条基本原则：**
+
+1. **允许多个线程同时读共享变量；**
+2. **只允许一个线程写共享变量；**
+3. **如果一个写线程正在执行写操作，此时禁止读线程读共享变量。**
+
+
+
+#### 读写锁的升级与降级
+
+先获取读锁，然后再升级为写锁，对此还有个专业的名字，叫锁的升级。可惜 **ReadWriteLock 并不支持这种锁升级**。在上面的代码示例中，**读锁还没有释放，此时获取写锁，会导致写锁永久等待，最终导致相关线程都被阻塞，永远也没有机会被唤醒。锁的升级是不允许的**，这个你一定要注意。
+
+锁的升级是不允许的，但是**读写锁的降级却是允许的**。
+
+#### 总结
+
+**读写锁类似于 ReentrantLock，也支持公平模式和非公平模式**。读锁和写锁都实现了 java.util.concurrent.locks.Lock 接口，所以除了支持 lock() 方法外，tryLock()、lockInterruptibly() 等方法也都是支持的。但是有一点需要注意，那就是**只有写锁支持条件变量，读锁是不支持条件变量的，读锁调用 newCondition() 会抛出 UnsupportedOperationException 异常**。
+
+今天我们用 ReadWriteLock 实现了一个简单的缓存，这个缓存虽然解决了缓存的初始化问题，但是没有解决缓存数据与源头数据的同步问题，这里的数据同步指的是保证缓存数据和源头数据的一致性。**解决数据同步问题的一个最简单的方案就是超时机制**。所谓超时机制指的是加载进缓存的数据不是长久有效的，而是有时效的，当缓存的数据超过时效，也就是超时之后，这条数据在缓存中就失效了。而访问缓存中失效的数据，会触发缓存重新从源头把数据加载进缓存。**当然也可以在源头数据发生变化时，快速反馈给缓存**，但这个就要依赖具体的场景了。例如 MySQL 作为数据源头，可以通过近实时地解析 binlog 来识别数据是否发生了变化，如果发生了变化就将最新的数据推送给缓存。另外，还有一些方案采取的是数据库和缓存的双写方案。
+
+
+
+非公平锁写锁可能会饿死
+
+加读锁不操作共享变量不需要支持条件变量
+
+
+
+Q:那么读锁的作用是什么呢？
+
+ A:任何锁表面上是互斥，但本质是都是**为了避免原子性问题**（如果程序没有原子性问题，那只用volatile来避免可见性和有序性问题就可以了，效率更高），读锁自然也是为了避免原子性问题，比如一个long型参数的写操作并不是原子性的，如果允许同时读和写，那读到的数很可能是就是写操作的中间状态，比如刚写完前32位的中间状态。long型数都如此，而**实际上一般读的都是复杂的对象，那中间状态的情况就更多了**。
+
+
+
+
+
+### 18 | StampedLock：有没有比读写锁更快的锁？
+
+在读多写少的场景中，还有没有更快的技术方案呢？还真有，Java 在 1.8 这个版本里，提供了一种叫 **StampedLock 的锁，它的性能就比读写锁还要好。**
+
+#### StampedLock 支持的三种锁模式
+
+我们先来看看在使用上 StampedLock 和上一篇文章讲的 ReadWriteLock 有哪些区别。ReadWriteLock 支持两种模式：一种是读锁，一种是写锁。而 **StampedLock 支持三种模式，分别是：写锁、悲观读锁和乐观读。其中，写锁、悲观读锁的语义和 ReadWriteLock 的写锁、读锁的语义非常类似，允许多个线程同时获取悲观读锁，但是只允许一个线程获取写锁，写锁和悲观读锁是互斥的。不同的是：StampedLock 里的写锁和悲观读锁加锁成功之后，都会返回一个 stamp；然后解锁的时候，需要传入这个 stamp。**
+
+StampedLock 的性能之所以比 ReadWriteLock 还要好，其关键是 **StampedLock 支持乐观读的方式**。ReadWriteLock 支持多个线程同时读，但是当多个线程同时读的时候，所有的写操作会被阻塞；而 **StampedLock 提供的乐观读，是允许一个线程获取写锁的，也就是说不是所有的写操作都被阻塞。**
+
+注意这里，**我们用的是“乐观读”这个词，而不是“乐观读锁”，是要提醒你，乐观读这个操作是无锁的**，所以相比较 ReadWriteLock 的读锁，乐观读的性能更好一些。
+
+文中下面这段代码是出自 Java SDK 官方示例，并略做了修改。在 distanceFromOrigin() 这个方法中，首先通过调用 tryOptimisticRead() 获取了一个 stamp，这里的 **tryOptimisticRead() 就是我们前面提到的乐观读**。之后将共享变量 x 和 y 读入方法的局部变量中，不过需要注意的是，**由于 tryOptimisticRead() 是无锁的，所以共享变量 x 和 y 读入方法局部变量时，x 和 y 有可能被其他线程修改了。因此最后读完之后，还需要再次验证一下是否存在写操作，这个验证操作是通过调用 validate(stamp) 来实现的**。
+
+```java
+
+class Point {
+  private int x, y;
+  final StampedLock sl = 
+    new StampedLock();
+  //计算到原点的距离  
+  int distanceFromOrigin() {
+    // 乐观读
+    long stamp = 
+      sl.tryOptimisticRead();
+    // 读入局部变量，
+    // 读的过程数据可能被修改
+    int curX = x, curY = y;
+    //判断执行读操作期间，
+    //是否存在写操作，如果存在，
+    //则sl.validate返回false
+    if (!sl.validate(stamp)){
+      // 升级为悲观读锁
+      stamp = sl.readLock();
+      try {
+        curX = x;
+        curY = y;
+      } finally {
+        //释放悲观读锁
+        sl.unlockRead(stamp);
+      }
+    }
+    return Math.sqrt(
+      curX * curX + curY * curY);
+  }
+}
+```
+
+在上面这个代码示例中，**如果执行乐观读操作的期间，存在写操作，会把乐观读升级为悲观读锁。这个做法挺合理的**，否则你就需要在一个循环里反复执行乐观读，直到执行乐观读操作的期间没有写操作（只有这样才能保证 x 和 y 的正确性和一致性），而**循环读会浪费大量的 CPU**。升级为悲观读锁，代码简练且不易出错，**建议你在具体实践时也采用这样的方法**。
+
+
+
+#### 进一步理解乐观读
+
+如果你曾经用过数据库的乐观锁，可能会发现 StampedLock 的乐观读和数据库的乐观锁有异曲同工之妙。
+
+你会发现数据库里的乐观锁，查询的时候需要把 version 字段查出来，更新的时候要利用 version 字段做验证。**这个 version 字段就类似于 StampedLock 里面的 stamp**。这样对比着看，相信你会更容易理解 StampedLock 里乐观读的用法。
+
+
+
+#### StampedLock 使用注意事项
+
+StampedLock 在命名上并没有增加 Reentrant，想必你已经猜测到 StampedLock 应该是不可重入的。事实上，的确是这样的，**StampedLock 不支持重入**。这个是在使用中必须要特别注意的。
+
+另外，**StampedLock 的悲观读锁、写锁都不支持条件变量**，这个也需要你注意。
+
+还有一点需要特别注意，那就是：**如果线程阻塞在 StampedLock 的 readLock() 或者 writeLock() 上时，此时调用该阻塞线程的 interrupt() 方法，会导致 CPU 飙升**。例如下面的代码中，线程 T1 获取写锁之后将自己阻塞，线程 T2 尝试获取悲观读锁，也会阻塞；如果此时调用线程 T2 的 interrupt() 方法来中断线程 T2 的话，你会发现线程 T2 所在 CPU 会飙升到 100%。**所以，使用 StampedLock 一定不要调用中断操作，如果需要支持中断功能，一定使用可中断的悲观读锁 readLockInterruptibly() 和写锁 writeLockInterruptibly()。这个规则一定要记清楚。**
+
+#### 总结
+
+StampedLock 的使用看上去有点复杂，但是如果你能理解乐观锁背后的原理，使用起来还是比较流畅的。建议你认真揣摩 Java 的官方示例，这个示例基本上就是一个最佳实践。我们把 Java 官方示例精简后，形成下面的代码模板，建议你在实际工作中尽量按照这个模板来使用 StampedLock。
+
+StampedLock 读模板：
+
+```java
+
+final StampedLock sl = 
+  new StampedLock();
+
+// 乐观读
+long stamp = 
+  sl.tryOptimisticRead();
+// 读入方法局部变量
+......
+// 校验stamp
+if (!sl.validate(stamp)){
+  // 升级为悲观读锁
+  stamp = sl.readLock();
+  try {
+    // 读入方法局部变量
+    .....
+  } finally {
+    //释放悲观读锁
+    sl.unlockRead(stamp);
+  }
+}
+//使用方法局部变量执行业务操作
+......
+```
+
+StampedLock 写模板：
+
+```java
+
+long stamp = sl.writeLock();
+try {
+  // 写共享变量
+  ......
+} finally {
+  sl.unlockWrite(stamp);
+}
+```
+
+
+
+**StampedLock 支持锁的降级（通过 tryConvertToReadLock() 方法实现）和升级（通过 tryConvertToWriteLock() 方法实现），但是建议你要慎重使用。**
+
+StampedLock使用注意事项： 1. 不可重入。 2. 悲观读锁、写锁都不支持条件变量。 3. 使用StampedLock一定不要调用中断操作，中断阻塞中的线程会导致CPU飙升。
+
+
+
+Q: 调用interrupt引起cpu飙高的原因是什么
+
+作者回复: 内部实现里while循环里面对中断的处理有点问题
+
+
+
+### 19 | CountDownLatch和CyclicBarrier：如何让多线程步调一致？
+
+#### 总结
+
+CountDownLatch 和 CyclicBarrier 是 Java 并发包提供的两个非常易用的线程同步工具类，这两个工具类用法的区别在这里还是有必要再强调一下：**CountDownLatch 主要用来解决一个线程等待多个线程的场景，可以类比旅游团团长要等待所有的游客到齐才能去下一个景点**；**而 CyclicBarrier 是一组线程之间互相等待，更像是几个驴友之间不离不弃**。除此之外 **CountDownLatch 的计数器是不能循环利用的，也就是说一旦计数器减到 0，再有线程调用 await()，该线程会直接通过**。但 **CyclicBarrier 的计数器是可以循环利用的，而且具备自动重置的功能，一旦计数器减到 0 会自动重置到你设置的初始值。除此之外，CyclicBarrier 还可以设置回调函数**，可以说是功能丰富。
+
+
+
+### 20 | 并发容器：都有哪些“坑”需要我们填？
+
+我们曾经多次强调，**组合操作需要注意竞态条件问题**，例如上面提到的 addIfNotExist() 方法就包含组合操作。**组合操作往往隐藏着竞态条件问题，即便每个操作都能保证原子性，也并不能保证组合操作的原子性，这个一定要注意。**
+
+
+
+在容器领域一个容易被忽视的“坑”是用**迭代器遍历容器**，例如在下面的代码中，通过迭代器遍历容器 list，对每个元素调用 foo() 方法，这就存在并发问题，这些**组合的操作不具备原子性**。
+
+```java
+List list = Collections.
+  synchronizedList(new ArrayList());
+Set set = Collections.
+  synchronizedSet(new HashSet());
+Map map = Collections.
+  synchronizedMap(new HashMap());
+```
+
+上面我们提到的**这些经过包装后线程安全容器，都是基于 synchronized 这个同步关键字实现的，所以也被称为同步容器**。Java 提供的同步容器还有 **Vector、Stack 和 Hashtable，这三个容器不是基于包装类实现的，但同样是基于 synchronized 实现的，对这三个容器的遍历，同样要加锁保证互斥**。
+
+
+
+
+
+#### 并发容器及其注意事项
+
+**Java 在 1.5 版本之前所谓的线程安全的容器，主要指的就是同步容器**。不过同步容器有个最大的问题，那就是**性能差**，所有方法都用 synchronized 来保证互斥，串行度太高了。因此 **Java 在 1.5 及之后版本提供了性能更高的容器，我们一般称为并发容器**。
+
+![img](https://static001.geekbang.org/resource/image/a2/1d/a20efe788caf4f07a4ad027639c80b1d.png?wh=1142*378)
+
+
+
+##### （一）List
+
+里面只有一个实现类就是 CopyOnWriteArrayList。CopyOnWrite，顾名思义就是写的时候会将共享变量新复制一份出来，这样做的好处是读操作完全无锁。
+
+CopyOnWriteArrayList 内部维护了一个数组，成员变量 array 就指向这个内部数组，所有的读操作都是基于 array 进行的，如下图所示，迭代器 Iterator 遍历的就是 array 数组。执行迭代的内部结构图如果在遍历 array 的同时，还有一个**写操作，例如增加元素，CopyOnWriteArrayList 是如何处理的呢？CopyOnWriteArrayList 会将 array 复制一份，然后在新复制处理的数组上执行增加元素的操作，执行完之后再将 array 指向这个新的数组**。通过下图你可以看到，**读写是可以并行的，遍历操作一直都是基于原 array 执行，而写操作则是基于新 array 进行。**
+
+使用 CopyOnWriteArrayList 需要注意的“坑”主要有两个方面。一个是应用场景，**CopyOnWriteArrayList 仅适用于写操作非常少的场景，而且能够容忍读写的短暂不一致**。例如上面的例子中，写入的新元素并不能立刻被遍历到。另一个需要注意的是，**CopyOnWriteArrayList 迭代器是只读的，不支持增删改。因为迭代器遍历的仅仅是一个快照，而对快照进行增删改是没有意义的。**
+
+
+
+##### （二）Map
+
+Map 接口的两个实现是 **ConcurrentHashMap** 和 **ConcurrentSkipListMap**，它们从应用的角度来看，主要区别在于 **ConcurrentHashMap 的 key 是无序的，而 ConcurrentSkipListMap 的 key 是有序的**。所以如果你需要保证 key 的顺序，就只能使用 ConcurrentSkipListMap。使用 ConcurrentHashMap 和 ConcurrentSkipListMap 需要注意的地方是，它们的 **key 和 value 都不能为空，否则会抛出NullPointerException**这个运行时异常。
+
+
+
+![img](https://static001.geekbang.org/resource/image/6d/be/6da9933b6312acf3445f736262425abe.png?wh=1142*596)
+
+个人理解
+
+**只要是线程安全的map key value都不能为null**
+**treeMap 是因为比较器所以key不能为null,如果自己写比较器对null做了处理则key可为null**，对value无影响可为null
+**hashMap key value都可以为null**
+
+
+
+##### （三）Set
+
+接口的两个实现是 **CopyOnWriteArraySet** 和 **ConcurrentSkipListSet**，使用场景可以参考前面讲述的 CopyOnWriteArrayList 和 ConcurrentSkipListMap，它们的原理都是一样的，这里就不再赘述了。
+
+
+
+##### （四）Queue
+
+Java 并发包里面 Queue 这类并发容器是最复杂的，你可以从以下两个维度来分类。**一个维度是阻塞与非阻塞，所谓阻塞指的是当队列已满时，入队操作阻塞；当队列已空时，出队操作阻塞**。**另一个维度是单端与双端，单端指的是只能队尾入队，队首出队；而双端指的是队首队尾皆可入队出队。**Java 并发包里**阻塞队列都用 Blocking 关键字标识**，**单端队列使用 Queue 标识**，**双端队列使用 Deque 标识**。
+
+这两个维度组合后，可以将 Queue 细分为四大类，分别是：
+
+1**.单端阻塞队列**：其实现有 **ArrayBlockingQueue、LinkedBlockingQueue、SynchronousQueue、LinkedTransferQueue、PriorityBlockingQueue 和 DelayQueue**。内部一般会持有一个队列，这个**队列可以是数组（其实现是 ArrayBlockingQueue）也可以是链表（其实现是 LinkedBlockingQueue）**；甚至还可以**不持有队列（其实现是 SynchronousQueue），此时生产者线程的入队操作必须等待消费者线程的出队操作**。而 **LinkedTransferQueue 融合 LinkedBlockingQueue 和 SynchronousQueue 的功能，性能比 LinkedBlockingQueue 更好**；**PriorityBlockingQueue 支持按照优先级出队**；**DelayQueue 支持延时出队**。
+
+![img](https://static001.geekbang.org/resource/image/59/83/5974a10f5eb0646fa94f7ba505bfcf83.png?wh=1142*419)
+
+2.**双端阻塞队列**：其实现是 **LinkedBlockingDeque**。
+
+![img](https://static001.geekbang.org/resource/image/1a/96/1a58ff20f1271d899b93a4f9d54ce396.png?wh=1142*432)
+
+3.**单端非阻塞队列**：其实现是 **ConcurrentLinkedQueue**。
+
+4**.双端非阻塞队列**：其实现是 **ConcurrentLinkedDeque**。
+
+
+
+另外，**使用队列时，需要格外注意队列是否支持有界（所谓有界指的是内部的队列是否有容量限制）**。实际工作中，**一般都不建议使用无界的队列，因为数据量大了之后很容易导致 OOM**。上面我们提到的这些 Queue 中，**只有 ArrayBlockingQueue 和 LinkedBlockingQueue 是支持有界的，所以在使用其他无界队列时，一定要充分考虑是否存在导致 OOM 的隐患**。
+
+
+
+
+
+### 21 | 原子类：无锁工具类的典范
+
+无锁方案相对互斥锁方案，最大的好处就是**性能**。**互斥锁方案为了保证互斥性，需要执行加锁、解锁操作，而加锁、解锁操作本身就消耗性能；同时拿不到锁的线程还会进入阻塞状态，进而触发线程切换，线程切换对性能的消耗也很大**。 相比之下，无锁方案则完全没有加锁、解锁的性能消耗，同时还能保证互斥性，既解决了问题，又没有带来新的问题，可谓绝佳方案。那它是如何做到的呢？
+
+#### 无锁方案的实现原理
+
+**其实原子类性能高的秘密很简单，硬件支持而已**。CPU 为了解决并发问题，**提供了 CAS 指令**（CAS，全称是 Compare And Swap，即“比较并交换”）。**CAS 指令包含 3 个参数：共享变量的内存地址 A、用于比较的值 B 和共享变量的新值 C；并且只有当内存中地址 A 处的值等于 B 时，才能将内存中地址 A 处的值更新为新值 C**。作为一条 CPU 指令，CAS 指令本身是能够保证原子性的。你可以通过下面 CAS 指令的模拟代码来理解 CAS 的工作原理。在下面的模拟程序中有两个参数，一个是期望值 expect，另一个是需要写入的新值 newValue，**只有当目前 count 的值和期望值 expect 相等时，才会将 count 更新为 newValue**。
+
+**但是在 CAS 方案中，有一个问题可能会常被你忽略，那就是 ABA 的问题**。什么是 ABA 问题呢？前面我们提到“如果 cas(count,newValue) 返回的值不等于count，意味着线程在执行完代码①处之后，执行代码②处之前，count 的值被其他线程更新过”，那如果 cas(count,newValue) 返回的值等于count，是否就能够认为 count 的值没有被其他线程更新过呢？显然不是的，假设 count 原本是 A，线程 T1 在执行完代码①处之后，执行代码②处之前，有可能 count 被线程 T2 更新成了 B，之后又被 T3 更新回了 A，这样线程 T1 虽然看到的一直是 A，但是其实已经被其他线程更新过了，这就是 ABA 问题。
+
+可能大多数情况下我们并不关心 ABA 问题，例如数值的原子递增，但也不能所有情况下都不关心，例如**原子化的更新对象很可能就需要关心 ABA 问题，因为两个 A 虽然相等，但是第二个 A 的属性可能已经发生变化了。所以在使用 CAS 方案的时候，一定要先 check 一下**。
+
+CAS经典方案
+
+```java
+
+do {
+  // 获取当前值
+  oldV = xxxx；
+  // 根据当前值计算新值
+  newV = ...oldV...
+}while(!compareAndSet(oldV,newV);
+```
+
+
+
+#### 原子类概览
+
+Java SDK 并发包里提供的原子类内容很丰富，我们可以将它们分为五个类别：**原子化的基本数据类型、原子化的对象引用类型、原子化数组、原子化对象属性更新器和原子化的累加器。**
+
+![img](https://static001.geekbang.org/resource/image/00/4a/007a32583fbf519469462fe61805eb4a.png?wh=1142*461)
+
+
+
+1. **原子化的基本数据类型** 
+
+   相关实现有 **AtomicBoolean、AtomicInteger 和 AtomicLong**
+
+2. **原子化的对象引用类型**
+
+   相关实现有 **AtomicReference、AtomicStampedReference 和 AtomicMarkableReference**，利用它们可以实现对象引用的原子化更新。AtomicReference 提供的方法和原子化的基本数据类型差不多，这里不再赘述。不过需要注意的是，对象引用的更新需要重点关注 ABA 问题，AtomicStampedReference 和 AtomicMarkableReference 这两个原子类可以解决 ABA 问题。
+
+   解决 ABA 问题的思路其实很简单，增加一个版本号维度就可以了。
+
+3.  **原子化数组**
+
+   相关实现有 **AtomicIntegerArray、AtomicLongArray 和 AtomicReferenceArray**，利用这些原子类，我们可以原子化地更新数组里面的每一个元素。这些类提供的方法和原子化的基本数据类型的区别仅仅是：每个方法多了一个数组的索引参数
+
+4. **原子化对象属性更新器**
+
+   相关实现有 **AtomicIntegerFieldUpdater、AtomicLongFieldUpdater 和 AtomicReferenceFieldUpdater**，利用它们可以原子化地更新对象的属性，这三个方法都是利用反射机制实现的，创建更新器的方法如下：
+
+   ```java
+   public static <U>AtomicXXXFieldUpdater<U> newUpdater(Class<U> tclass,   String fieldName)
+   ```
+
+   需要注意的是，**对象属性必须是 volatile 类型的，只有这样才能保证可见性**；如果对象属性不是 volatile 类型的，newUpdater() 方法会抛出 IllegalArgumentException 这个运行时异常。你会发现 newUpdater() 的方法参数只有类的信息，没有对象的引用，而更新对象的属性，一定需要对象的引用，那这个参数是在哪里传入的呢？是在原子操作的方法参数中传入的。例如 compareAndSet() 这个原子操作，相比原子化的基本数据类型多了一个对象引用 obj。原子化对象属性更新器相关的方法，相比原子化的基本数据类型仅仅是多了对象引用参数
+
+   ```java
+   
+   boolean compareAndSet(
+     T obj, 
+     int expect, 
+     int update)
+   ```
+
+5. **原子化的累加器**
+
+   **DoubleAccumulator、DoubleAdder、LongAccumulator 和 LongAdder，这四个类仅仅用来执行累加操作，相比原子化的基本数据类型，速度更快，但是不支持 compareAndSet() 方法。如果你仅仅需要累加操作，使用原子化的累加器性能会更好。**
+
+#### 总结
+
+**无锁方案相对于互斥锁方案，优点非常多，首先性能好，其次是基本不会出现死锁问题（但可能出现饥饿和活锁问题，因为自旋会反复重试）**。Java 提供的原子类大部分都实现了 compareAndSet() 方法，基于 compareAndSet() 方法，你可以构建自己的无锁数据结构，但是建议你不要这样做，这个工作最好还是让大师们去完成，原因是无锁算法没你想象的那么简单。Java 提供的原子类能够解决一些简单的原子性问题，但你可能会发现，**上面我们所有原子类的方法都是针对一个共享变量的，如果你需要解决多个变量的原子性问题，建议还是使用互斥锁方案。原子类虽好，但使用要慎之又慎**。
+
+
+
+### 22 | Executor与线程池：如何创建正确的线程池？
+
+**线程是一个重量级的对象，应该避免频繁创建和销毁。**
+
+#### 线程池是一种生产者 - 消费者模式
+
+为什么线程池没有采用一般意义上池化资源的设计方法呢？如果线程池采用一般意义上池化资源的设计方法，应该是下面示例代码这样。你可以来思考一下，假设我们获取到一个空闲线程 T1，然后该如何使用 T1 呢？你期望的可能是这样：通过调用 T1 的 execute() 方法，传入一个 Runnable 对象来执行具体业务逻辑，就像通过构造函数 Thread(Runnable target) 创建线程一样。可惜的是，你翻遍 Thread 对象的所有方法，都不存在类似 execute(Runnable target) 这样的公共方法。
+
+所以，线程池的设计，没有办法直接采用一般意义上池化资源的设计方法。那线程池该如何设计呢？目前业界线程池的设计，普遍采用的都是生产者 - 消费者模式。线程池的使用方是生产者，线程池本身是消费者。在下面的示例代码中，我们创建了一个非常简单的线程池 MyThreadPool，你可以通过它来理解线程池的工作原理。
+
+#### 如何使用 Java 中的线程池
+
+Java 并发包里提供的线程池，远比我们上面的示例代码强大得多，当然也复杂得多。Java 提供的线程池相关的工具类中，最核心的是 **ThreadPoolExecutor**，通过名字你也能看出来，它强调的是 Executor，而不是一般意义上的池化资源。
+
+ThreadPoolExecutor 的构造函数非常复杂，如下面代码所示，这个最完备的构造函数有 7 个参数。
+
+```java
+
+ThreadPoolExecutor(
+  int corePoolSize,
+  int maximumPoolSize,
+  long keepAliveTime,
+  TimeUnit unit,
+  BlockingQueue<Runnable> workQueue,
+  ThreadFactory threadFactory,
+  RejectedExecutionHandler handler) 
+```
+
+下面我们一一介绍这些参数的意义，你可以把线程池类比为一个项目组，而线程就是项目组的成员。
+
+**corePoolSize**：表示线程池保有的最小线程数。有些项目很闲，但是也不能把人都撤了，至少要留 corePoolSize 个人坚守阵地。
+
+**maximumPoolSize**：表示线程池创建的最大线程数。当项目很忙时，就需要加人，但是也不能无限制地加，最多就加到 maximumPoolSize 个人。当项目闲下来时，就要撤人了，最多能撤到 corePoolSize 个人。
+
+**keepAliveTime** & **unit**：上面提到项目根据忙闲来增减人员，那在编程世界里，如何定义忙和闲呢？很简单，一个线程如果在一段时间内，都没有执行任务，说明很闲，keepAliveTime 和 unit 就是用来定义这个“一段时间”的参数。也就是说，如果一个线程空闲了keepAliveTime & unit这么久，而且线程池的线程数大于 corePoolSize ，那么这个空闲的线程就要被回收了。
+
+**workQueue**：工作队列，和上面示例代码的工作队列同义。
+
+**threadFactory**：通过这个参数你可以自定义如何创建线程，例如你可以给线程指定一个有意义的名字。
+
+**handler**：通过这个参数你可以自定义任务的拒绝策略。如果线程池中所有的线程都在忙碌，并且工作队列也满了（前提是工作队列是有界队列），那么此时提交任务，线程池就会拒绝接收。至于拒绝的策略，你可以通过 handler 这个参数来指定。ThreadPoolExecutor 已经提供了以下 4 种策略。
+
+**CallerRunsPolicy**：提交任务的线程自己去执行该任务。
+
+**AbortPolicy**：默认的拒绝策略，会 throws RejectedExecutionException。
+
+**DiscardPolicy**：直接丢弃任务，没有任何异常抛出。
+
+**DiscardOldestPolicy**：丢弃最老的任务，其实就是把最早进入工作队列的任务丢弃，然后把新任务加入到工作队列。
+
+Java 在 1.6 版本还增加了 allowCoreThreadTimeOut(boolean value) 方法，它可以让所有线程都支持超时，这意味着如果项目很闲，就会将项目组的成员都撤走。
+
+
+
+#### 使用线程池要注意些什么
+
+目前大厂的编码规范中基本上都不建议使用 Executors 了，所以这里我就不再花篇幅介绍了。**不建议使用 Executors 的最重要的原因是：Executors 提供的很多方法默认使用的都是无界的 LinkedBlockingQueue，高负载情境下，无界队列很容易导致 OOM，而 OOM 会导致所有请求都无法处理，这是致命问题。所以强烈建议使用有界队列。**
+
+使用有界队列，**当任务过多时，线程池会触发执行拒绝策略**，线程池默认的拒绝策略会 throw RejectedExecutionException 这是个运行时异常，对于运行时异常编译器并不强制 catch 它，所以开发人员很容易忽略。因此默认拒绝策略要慎重使用。如果线程池处理的任务非常重要，**建议自定义自己的拒绝策略；并且在实际工作中，自定义的拒绝策略往往和降级策略配合使用**。
+
+使用线程池，还要注意异常处理的问题，例如**通过 ThreadPoolExecutor 对象的 execute() 方法提交任务时，如果任务在执行的过程中出现运行时异常，会导致执行任务的线程终止；不过，最致命的是任务虽然异常了，但是你却获取不到任何通知，这会让你误以为任务都执行得很正常**。虽然线程池提供了很多用于异常处理的方法，但是最稳妥和简单的方案还是捕获所有异常并按需处理，你可以参考下面的示例代码。
+
+```java
+try {
+  //业务逻辑
+} catch (RuntimeException x) {
+  //按需处理
+} catch (Throwable x) {
+  //按需处理
+} 
+```
+
+课后思考
+
+Q:使用线程池，默认情况下创建的线程名字都类似pool-1-thread-2这样，没有业务含义。而很多情况下为了便于诊断问题，都需要给线程赋予一个有意义的名字，那你知道有哪些办法可以给线程池里的线程指定名字吗？
+
+A:
+
+1. 给线程池设置名称前缀
+
+   ```
+   ThreadPoolTaskExecutor threadPoolTaskExecutor = new ThreadPoolTaskExecutor(); threadPoolTaskExecutor.setThreadNamePrefix("CUSTOM_NAME_PREFIX"); 
+   ```
+
+   
+
+2.  在ThreadFactory中自定义名称前缀
+
+   ```
+   class CustomThreadFactory implements ThreadFactory {
+           @Override
+           public Thread newThread(Runnable r) {
+               Thread thread = new Thread(线程名称);
+               return thread;
+           }
+       }
+   
+   ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(10,
+                   100,
+                   120,
+                   TimeUnit.SECONDS,
+                   new LinkedBlockingQueue<>(),
+                   new CustomThreadFactory(),
+                   new ThreadPoolExecutor.AbortPolicy()
+           );
+   ```
+
+   
+
+
+
+### 23 | Future：如何用多线程实现最优的“烧水泡茶”程序？
+
+下面我们就来介绍一下使用 ThreadPoolExecutor 的时候，如何获取任务执行结果。
+
+#### 如何获取任务执行结果
+
+Java 通过 ThreadPoolExecutor 提供的 3 个 submit() 方法和 1 个 FutureTask 工具类来支持获得任务执行结果的需求。下面我们先来介绍这 3 个 submit() 方法，这 3 个方法的方法签名如下。
+
+```java
+
+// 提交Runnable任务
+Future<?> 
+  submit(Runnable task);
+// 提交Callable任务
+<T> Future<T> 
+  submit(Callable<T> task);
+// 提交Runnable任务及结果引用  
+<T> Future<T> 
+  submit(Runnable task, T result);
+```
+
+你会发现它们的返回值都是 Future 接口，**Future 接口有 5 个方法，我都列在下面了，它们分别是取消任务的方法 cancel()、判断任务是否已取消的方法 isCancelled()、判断任务是否已结束的方法 isDone()以及2 个获得任务执行结果的 get() 和 get(timeout, unit)**，其中最后一个 get(timeout, unit) 支持超时机制。通过 Future 接口的这 5 个方法你会发现，我们提交的任务不但能够获取任务执行结果，还可以取消任务。不过需要注意的是：**这两个 get() 方法都是阻塞式的，如果被调用的时候，任务还没有执行完，那么调用 get() 方法的线程会阻塞，直到任务执行完才会被唤醒**。
+
+这 3 个 submit() 方法之间的区别在于方法参数不同，下面我们简要介绍一下。
+
+提交 Runnable 任务 submit(Runnable task) ：这个方法的参数是一个 Runnable 接口，Runnable 接口的 run() 方法是没有返回值的，所以 submit(Runnable task) 这个方法**返回的 Future 仅可以用来断言任务已经结束了，类似于 Thread.join()**。
+
+提交 Callable 任务 submit(Callable<T> task)：这个方法的参数是一个 Callable 接口，它只有一个 call() 方法，并且这个方法是有返回值的，所以**这个方法返回的 Future 对象可以通过调用其 get() 方法来获取任务的执行结果**。
+
+提交 Runnable 任务及结果引用 submit(Runnable task, T result)：这个方法很有意思，假设这个方法返回的 Future 对象是 f，f.get() 的**返回值就是传给 submit() 方法的参数 result**。
+
+
+
+前面我们提到的 Future 是一个接口，而 FutureTask 是一个实实在在的工具类。那如何使用 FutureTask 呢？其实很简单**，FutureTask 实现了 Runnable 和 Future 接口**，由于实现了 Runnable 接口，所以可以将 FutureTask 对象作为任务提交给 ThreadPoolExecutor 去执行，也可以直接被 Thread 执行；又因为实现了 Future 接口，所以也能用来获得任务的执行结果。下面的示例代码是将 FutureTask 对象提交给 ThreadPoolExecutor 去执行。
+
+```java
+
+// 创建FutureTask
+FutureTask<Integer> futureTask
+  = new FutureTask<>(()-> 1+2);
+// 创建线程池
+ExecutorService es = 
+  Executors.newCachedThreadPool();
+// 提交FutureTask 
+es.submit(futureTask);
+// 获取计算结果
+Integer result = futureTask.get();
+```
+
+#### 总结
+
+利用 Java 并发包提供的 **Future 可以很容易获得异步任务的执行结果**，无论异步任务是通过线程池 ThreadPoolExecutor 执行的，还是通过手工创建子线程来执行的。利用多线程可以快速将一些串行的任务并行化，从而提高性能；如果任务之间有依赖关系，比如当前任务依赖前一个任务的执行结果，这种问题基本上都可以用 Future 来解决。在分析这种问题的过程中，**建议你用有向图描述一下任务之间的依赖关系，同时将线程的分工也做好**，类似于烧水泡茶最优分工方案那幅图。对照图来写代码，好处是更形象，且不易出错。
+
+
+
+
+
+### 24 | CompletableFuture：异步编程没那么难
+
+**异步化**，是并行方案得以实施的基础，更深入地讲其实就是：**利用多线程优化性能**这个核心方案得以实施的基础。看到这里，相信你应该就能理解异步编程最近几年为什么会大火了，因为优化性能是互联网大厂的一个核心需求啊。**Java 在 1.8 版本提供了 CompletableFuture 来支持异步编程**，CompletableFuture 有可能是你见过的最复杂的工具类了，不过功能也着实让人感到震撼。
+
+
+
+CompletableFuture的好处
+
+**无需手工维护线程**，没有繁琐的手工维护线程的工作，给任务分配线程的工作也不需要我们关注；
+
+**语义更清晰**，例如 f3 = f1.thenCombine(f2, ()->{}) 能够清晰地表述“任务 3 要等待任务 1 和任务 2 都完成后才能开始”；
+
+**代码更简练并且专注于业务逻辑**，几乎所有代码都是业务逻辑相关的。
+
+
+
+#### 创建 CompletableFuture 对象
+
+创建 CompletableFuture 对象主要靠下面代码中展示的这 4 个静态方法，我们先看前两个。在烧水泡茶的例子中，我们已经使用了runAsync(Runnable runnable)和supplyAsync(Supplier<U> supplier)，它们之间的区别是：**Runnable 接口的 run() 方法没有返回值，而 Supplier 接口的 get() 方法是有返回值的**。**前两个方法和后两个方法的区别在于：后两个方法可以指定线程池参数**。**默认情况下 CompletableFuture 会使用公共的 ForkJoinPool 线程池**，这个线程池默认创建的线程数是 CPU 的核数（也可以通过 JVM option:-Djava.util.concurrent.ForkJoinPool.common.parallelism 来设置 ForkJoinPool 线程池的线程数）。如果所有 CompletableFuture 共享一个线程池，那么一旦有任务执行一些很慢的 I/O 操作，就会导致线程池中所有线程都阻塞在 I/O 操作上，从而造成线程饥饿，进而影响整个系统的性能。所以，**强烈建议你要根据不同的业务类型创建不同的线程池，以避免互相干扰**。
+
+```java
+//使用默认线程池
+static CompletableFuture<Void> 
+  runAsync(Runnable runnable)
+static <U> CompletableFuture<U> 
+  supplyAsync(Supplier<U> supplier)
+//可以指定线程池  
+static CompletableFuture<Void> 
+  runAsync(Runnable runnable, Executor executor)
+static <U> CompletableFuture<U> 
+  supplyAsync(Supplier<U> supplier, Executor executor)  
+```
+
+
+
+创建完 CompletableFuture 对象之后，会自动地异步执行 runnable.run() 方法或者 supplier.get() 方法，**对于一个异步操作，你需要关注两个问题：一个是异步操作什么时候结束，另一个是如何获取异步操作的执行结果**。因为 CompletableFuture 类实现了 Future 接口，所以这两个问题你都可以通过 Future 接口来解决。另外，CompletableFuture 类还实现了 **CompletionStage** 接口，这个接口内容实在是太丰富了，在 1.8 版本里有 40 个方法。
+
+#### 如何理解 CompletionStage 接口
+
+我觉得，你可以站在分工的角度类比一下工作流。任务是有时序关系的，比如有**串行关系、并行关系、汇聚关系**等。**CompletionStage 接口可以清晰地描述任务之间的这种时序关系。**
+
+例如前面提到的 f3 = f1.thenCombine(f2, ()->{}) 描述的就是一种汇聚关系。烧水泡茶程序中的汇聚关系是一种 AND 聚合关系，这里的 AND 指的是所有依赖的任务（烧开水和拿茶叶）都完成后才开始执行当前任务（泡茶）。既然有 AND 聚合关系，那就一定还有 OR 聚合关系，所谓 OR 指的是依赖的任务只要有一个完成就可以执行当前任务。
+
+在编程领域，还有一个绕不过去的山头，那就是异常处理，**CompletionStage 接口也可以方便地描述异常处理**。
+
+下面我们就来一一介绍，CompletionStage 接口如何描述串行关系、AND 聚合关系、OR 聚合关系以及异常处理
+
+**1.描述串行关系**
+
+CompletionStage 接口里面描述串行关系，主要是 **thenApply**、**thenAccept**、**thenRun** 和 **thenCompose** 这四个系列的接口。
+
+thenApply 系列函数里参数 fn 的类型是接口 Function<T, R>，这个接口里与 CompletionStage 相关的方法是 R apply(T t)，这个方法既能接收参数也支持返回值，所以 thenApply 系列方法返回的是CompletionStage<R>。
+
+而 thenAccept 系列方法里参数 consumer 的类型是接口Consumer<T>，这个接口里与 CompletionStage 相关的方法是 void accept(T t)，这个方法虽然支持参数，但却不支持回值，所以 thenAccept 系列方法返回的是CompletionStage<Void>。
+
+thenRun 系列方法里 action 的参数是 Runnable，所以 action 既不能接收参数也不支持返回值，所以 thenRun 系列方法返回的也是CompletionStage<Void>。
+
+这些方法里面 Async 代表的是异步执行 fn、consumer 或者 action。其中，需要你注意的是 thenCompose 系列方法，这个系列的方法会新创建出一个子流程，最终结果和 thenApply 系列是相同的。
+
+```java
+
+CompletionStage<R> thenApply(fn);
+CompletionStage<R> thenApplyAsync(fn);
+CompletionStage<Void> thenAccept(consumer);
+CompletionStage<Void> thenAcceptAsync(consumer);
+CompletionStage<Void> thenRun(action);
+CompletionStage<Void> thenRunAsync(action);
+CompletionStage<R> thenCompose(fn);
+CompletionStage<R> thenComposeAsync(fn);
+```
+
+
+
+**2.描述 AND 汇聚关系**
+
+CompletionStage 接口里面描述 AND 汇聚关系，主要是 **thenCombine**、**thenAcceptBoth** 和 **runAfterBoth** 系列的接口，这些接口的区别也是源自 fn、consumer、action 这三个核心参数不同。
+
+
+
+**3.描述 OR 汇聚关系**
+
+CompletionStage 接口里面描述 OR 汇聚关系，主要是 **applyToEither**、**acceptEither** 和 **runAfterEither** 系列的接口，这些接口的区别也是源自 fn、consumer、action 这三个核心参数不同。
+
+
+
+**4.异常处理**
+
+虽然上面我们提到的 fn、consumer、action 它们的核心方法都不允许抛出可检查异常，但是却无法限制它们抛出运行时异常，例如下面的代码，执行 7/0 就会出现除零错误这个运行时异常。非异步编程里面，我们可以使用 try{}catch{}来捕获并处理异常，那在异步编程里面，异常该如何处理呢？
+
+```java
+
+CompletableFuture<Integer> 
+  f0 = CompletableFuture.
+    .supplyAsync(()->(7/0))
+    .thenApply(r->r*10);
+System.out.println(f0.join());
+```
+
+CompletionStage 接口给我们提供的方案非常简单，比 try{}catch{}还要简单，下面是相关的方法，使用这些方法进行异常处理和串行操作是一样的，都支持链式编程方式。
+
+```
+CompletionStage exceptionally(fn);
+CompletionStage<R> whenComplete(consumer);
+CompletionStage<R> whenCompleteAsync(consumer);
+CompletionStage<R> handle(fn);
+CompletionStage<R> handleAsync(fn);
+```
+
+下面的示例代码展示了如何使用 exceptionally() 方法来处理异常，**exceptionally() 的使用非常类似于 try{}catch{}中的 catch{}**，但是由于支持链式编程方式，所以相对更简单。既然有 try{}catch{}，那就一定还有 try{}finally{}，**whenComplete() 和 handle() 系列方法就类似于 try{}finally{}中的 finally{}**，无论是否发生异常都会执行 whenComplete() 中的回调函数 consumer 和 handle() 中的回调函数 fn。**whenComplete() 和 handle() 的区别在于 whenComplete() 不支持返回结果，而 handle() 是支持返回结果的**。
+
+```java
+CompletableFuture<Integer> 
+  f0 = CompletableFuture
+    .supplyAsync(()->(7/0))
+    .thenApply(r->r*10)
+    .exceptionally(e->0);
+System.out.println(f0.join());
+```
+
+
+
+
+
+### 25 | CompletionService：如何批量执行异步任务？
+
+**CompletionService 的实现原理也是内部维护了一个阻塞队列，当任务执行结束就把任务的执行结果加入到阻塞队列中，不同的是 CompletionService 是把任务执行结果的 Future 对象加入到阻塞队列中**。
+
+
+
+```
+ExecutorCompletionService(Executor executor)；
+
+ExecutorCompletionService(Executor executor, BlockingQueue<Future<V>> completionQueue)。
+```
+
+这两个构造方法都需要传入一个线程池，如果不指定 completionQueue，那么默认会使用无界的 LinkedBlockingQueue。任务执行结果的 Future 对象就是加入到 completionQueue 中。
+
+
+
+#### CompletionService 接口说明
+
+```java
+
+Future<V> submit(Callable<V> task);
+Future<V> submit(Runnable task, V result);
+Future<V> take() 
+  throws InterruptedException;
+Future<V> poll();
+Future<V> poll(long timeout, TimeUnit unit) 
+  throws InterruptedException;
+```
+
+下面我们详细地介绍一下 CompletionService 接口提供的方法，CompletionService 接口提供的方法有 5 个，这 5 个方法的方法签名如下所示。其中，submit() 相关的方法有两个。
+
+一个方法参数是Callable<V> task，前面利用 CompletionService 实现询价系统的示例代码中，我们提交任务就是用的它。
+
+另外一个方法有两个参数，分别是Runnable task和V result，这个方法类似于 ThreadPoolExecutor 的 <T> Future<T> submit(Runnable task, T result) ，这个方法在《23 | Future：如何用多线程实现最优的“烧水泡茶”程序？》中我们已详细介绍过，这里不再赘述。
+
+CompletionService 接口其余的 3 个方法，都是和阻塞队列相关的，**take()、poll() 都是从阻塞队列中获取并移除一个元素；它们的区别在于如果阻塞队列是空的，那么调用 take() 方法的线程会被阻塞，而 poll() 方法会返回 null 值**。 **poll(long timeout, TimeUnit unit) 方法支持以超时的方式获取并移除阻塞队列头部的一个元素，如果等待了 timeout unit 时间，阻塞队列还是空的，那么该方法会返回 null 值。**
+
+**Dubbo 中有一种叫做 Forking 的集群模式，这种集群模式下，支持并行地调用多个查询服务，只要有一个成功返回结果，整个服务就可以返回了。**利用 CompletionService 可以快速实现 Forking 这种集群模式。
+
+
+
+#### 总结
+
+当**需要批量提交异步任务的时候建议你使用 CompletionService**。CompletionService 将线程池 Executor 和阻塞队列 BlockingQueue 的功能融合在了一起，能够让批量异步任务的管理更简单。除此之外，CompletionService 能够让异步任务的执行结果有序化，先执行完的先进入阻塞队列，利用这个特性，你可以轻松实现后续处理的有序性，避免无谓的等待，同时还可以快速实现诸如 Forking Cluster 这样的需求。CompletionService 的实现类 ExecutorCompletionService，需要你自己创建线程池，虽看上去有些啰嗦，但好处是你可以让多个 ExecutorCompletionService 的线程池隔离，这种隔离性能避免几个特别耗时的任务拖垮整个应用的风险。
+
+
+
+
+
+### 26 | Fork/Join：单机版的MapReduce
+
+**对于简单的并行任务，你可以通过“线程池 +Future”的方案来解决；如果任务之间有聚合关系，无论是 AND 聚合还是 OR 聚合，都可以通过 CompletableFuture 来解决；而批量的并行任务，则可以通过 CompletionService 来解决。**
+
+**分治**，顾名思义，即**分而治之，是一种解决复杂问题的思维方法和模式**；具体来讲，**指的是把一个复杂的问题分解成多个相似的子问题，然后再把子问题分解成更小的子问题，直到子问题简单到可以直接求解**。理论上来讲，解决每一个问题都对应着一个任务，所以对于问题的分治，实际上就是对于任务的分治。
+
+分治思想在很多领域都有广泛的应用，例如算法领域有分治算法（**归并排序**、**快速排序**都属于分治算法，**二分法查找**也是一种分治算法）；大数据领域知名的计算框架 MapReduce 背后的思想也是分治。既然分治这种任务模型如此普遍，那 Java 显然也需要支持，Java 并发包里提供了一种叫做 Fork/Join 的并行计算框架，就是用来支持分治这种任务模型的。
+
+分治任务模型这里你需要先深入了解一下分治任务模型，分治任务模型可分为两个阶段：一个阶段是**任务分解**，也就是将任务迭代地分解为子任务，直至子任务可以直接计算出结果；另一个阶段是**结果合并**，即逐层合并子任务的执行结果，直至获得最终结果。
+
+#### Fork/Join 的使用
+
+Fork/Join 是一个并行计算的框架，主要就是用来支持分治任务模型的，这个计算框架里的 Fork 对应的是分治任务模型里的任务分解，Join 对应的是结果合并。Fork/Join 计算框架主要包含两部分，一部分是分治任务的线程池 ForkJoinPool，另一部分是分治任务 ForkJoinTask。这两部分的关系类似于 ThreadPoolExecutor 和 Runnable 的关系，都可以理解为提交任务到线程池，只不过分治任务有自己独特类型 ForkJoinTask。
+
+ForkJoinTask 是一个抽象类，它的方法有很多，最核心的是 fork() 方法和 join() 方法，其中 **fork() 方法会异步地执行一个子任务，而 join() 方法则会阻塞当前线程来等待子任务的执行结果**。ForkJoinTask 有两个子类——**RecursiveAction 和 RecursiveTask，通过名字你就应该能知道，它们都是用递归的方式来处理分治任务的。这两个子类都定义了抽象方法 compute()，不过区别是 RecursiveAction 定义的 compute() 没有返回值，而 RecursiveTask 定义的 compute() 方法是有返回值的。这两个子类也是抽象类，在使用的时候，需要你定义子类去扩展。**
+
+#### ForkJoinPool 工作原理
+
+Fork/Join 并行计算的核心组件是 ForkJoinPool，ForkJoinPool 本质上也是一个生产者 - 消费者的实现，但是更加智能，你可以参考下面的 ForkJoinPool 工作原理图来理解其原理。
+
+ThreadPoolExecutor 内部只有一个任务队列，而 **ForkJoinPool 内部有多个任务队列，当我们通过 ForkJoinPool 的 invoke() 或者 submit() 方法提交任务时，ForkJoinPool 根据一定的路由规则把任务提交到一个任务队列中，如果任务在执行过程中会创建出子任务，那么子任务会提交到工作线程对应的任务队列中。**
+
+如果工作线程对应的任务队列空了，是不是就没活儿干了呢？不是的，**ForkJoinPool 支持一种叫做“任务窃取”的机制**，如果工作线程空闲了，那它可以“窃取”其他工作任务队列里的任务，例如下图中，线程 T2 对应的任务队列已经空了，它可以“窃取”线程 T1 对应的任务队列的任务。如此一来，所有的工作线程都不会闲下来了。
+
+**ForkJoinPool 中的任务队列采用的是双端队列**，工作线程正常获取任务和“窃取任务”分别是从任务队列不同的端消费，这样能避免很多不必要的数据竞争。我们这里介绍的仅仅是简化后的原理，ForkJoinPool 的实现远比我们这里介绍的复杂，如果你感兴趣，建议去看它的源码。
+
+![img](https://static001.geekbang.org/resource/image/e7/31/e75988bd5a79652d8325ca63fcd55131.png?wh=1142*677)
+
+
+
+#### 总结
+
+**Fork/Join 并行计算框架主要解决的是分治任务。分治的核心思想是“分而治之”：将一个大的任务拆分成小的子任务去解决，然后再把子任务的结果聚合起来从而得到最终结果。这个过程非常类似于大数据处理中的 MapReduce，所以你可以把 Fork/Join 看作单机版的 MapReduce。Fork/Join 并行计算框架的核心组件是 ForkJoinPool。ForkJoinPool 支持任务窃取机制，能够让所有线程的工作量基本均衡，不会出现有的线程很忙，而有的线程很闲的状况，所以性能很好。**
+
+Java 1.8 提供的 Stream API 里面并行流也是以 ForkJoinPool 为基础的。不过需要你注意的是，默认情况下所有的并行流计算都共享一个 ForkJoinPool，这个共享的 ForkJoinPool 默认的线程数是 CPU 的核数；如果所有的并行流计算都是 CPU 密集型计算的话，完全没有问题，但是如果存在 I/O 密集型的并行流计算，那么很可能会因为一个很慢的 I/O 计算而拖慢整个系统的性能。所以建议用不同的 ForkJoinPool 执行不同类型的计算任务。

@@ -149,3 +149,12 @@ translog 其实也是先写入 os cache 的，默认每隔 5 秒刷一次到磁�
 如果是更新操作，就是将原来的 doc 标识为 deleted 状态，然后新写入一条数据。
  buffer 每 refresh 一次，就会产生一个 segment file，所以默认情况下是 1 秒钟一个 segment file，这样下来 segment file 会越来越多，此时会定期执行 merge。每次 merge 的时候，会将多个 segment file 合并成一个**(这里类似于Redis的RDB文件重写)**，同时这里会将标识为 deleted 的 doc 给**物理删除掉**，然后将新的 segment file 写入磁盘，这里会写一个 commit point，标识所有新的 segment file，然后打开 segment file 供搜索使用，同时删除旧的 segment file。
 
+
+
+
+
+#### ES的keyword类型和text类型的区别
+
+ES中的keyword类型,和MySQL中的字段基本上差不多,**当我们需要对查询字段进行精确匹配,左模糊,右模糊,全模糊,排序聚合等操作时,需要该字段的索引类型为keyword类型。**
+
+**当我们需要对字段进行分词查询时,需要该字段的类型为text类型**,并且指定分词器(不指定就用ES默认分词器,效果通常不理想)

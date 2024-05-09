@@ -2,6 +2,16 @@
 
 
 
+### Spring中版本
+
+`GA`指的是 General Availability，意为正式发布的版本，推荐使用（主要是稳定），与maven的`releases`类似；
+`PRE`指的是预览版，主要提供给开发测试人员找bug的。
+`SNAPSHOT`指的是快照版，会在此版本上持续更新，与maven的`SNAPSHOT`类似。
+
+
+
+
+
 @Transactional  失效原因
 
 1. **没使用public方法**。@Transactional 注解应该只被应用到 public 方法上，这是由 Spring AOP 的本质决定的。如果你在 protected、private 或者默认可见性的方法上使用 @Transactional 注解，这将被忽略，也不会抛出任何异常。
@@ -51,6 +61,12 @@
 | PROPAGATION_NESTED        | 如果当前存在事务，则在嵌套事务内执行。如果当前没有事务，则执行与PROPAGATION_REQUIRED 类似的操作 |
 
 
+
+判断当前是否存在事务
+
+```java
+boolean isActualTransactionActive = TransactionSynchronizationManager.isActualTransactionActive();
+```
 
 
 
@@ -466,6 +482,10 @@ filter.loginFilter=true
 
 
 
+#### @Value
+
+**@Value注解是不支持静态修饰符修饰的变量、方法等的**，但是你自己在对象中给静态变量赋值，这是用户的选择与Spring是没有关系的。Spring给你创建了对象，遇到@Value方法，同样也会执行，注意此时是执行类的实例方法，即对象的方法。
+
 
 
 ### 接口
@@ -486,6 +506,92 @@ public class RedisRateLimiterAspect implements ApplicationContextAware {
 
 }
 ```
+
+
+
+#### CommandLineRunner,ApplicationRunner
+
+**CommandLineRunner、ApplicationRunner 接口是在容器启动成功后的最后一步回调**（类似**开机自启动**）。
+
+
+
+**1.1** **是什么？**
+
+在开发过程中会有这样的场景：需要在容器启动的时候执行一些内容，比如：读取配置文件信息，数据库连接，删除临时文件，清除缓存信息，在Spring框架下是通过ApplicationListener监听器来实现的。在Spring Boot中给我们提供了两个接口CommandLineRunner和ApplicationRunner，来帮助我们实现这样的需求。
+
+**1.2** **区别**
+
+**1.2.1** **相同点**
+
+（1）都可以获取到启动时指定的外部参数。
+
+（2）主逻辑方法名称都是 run 。
+
+（3）在 run 方法内部抛出异常时, 应用都将无法正常启动。
+
+**1.2.2** **不同点**
+
+run 方法的参数不一致, 一个是 String[]数组, 一个是 ApplicationArguments 。
+
+
+
+**1.3** **执行顺序**
+
+在没有指定加载顺序 @Order 时或 @Order 值一致时, 先执行 ApplicationRunner。
+
+**如果指定了加载顺序 @Order,则按照 @Order 的顺序进行执行。**
+
+**说明：数字越小，优先级越高**
+
+**1.4** **使用场景**
+
+应用服务启动时，加载一些数据和执行一些应用的初始化动作。举例说明：
+
+（1）删除临时文件。
+
+（2）缓存预热：项目启动时热加载数据库数据至缓存。
+
+（3）清除缓存信息。
+
+（4）读取配置文件信息。
+
+（5）打印日志用于标识服务启动成功或者标识某些属性加载成功。
+
+（6）设置属性值或者启动组件，例如开启某些组件的开关、一些应用级别缓存的加载、启动定时任务等等。
+
+**1.5** **回调时机**
+
+通过pringApplication#run()方法的源码，可以知道CommandLineRunner和ApplicationRunner的回调时机：
+
+
+
+![img](https://pic2.zhimg.com/80/v2-5b4c508dc00488743a367feaec0c72d9_1440w.webp)
+
+
+
+
+
+进入到callRunners()方法看下：
+
+
+
+![img](https://pic3.zhimg.com/80/v2-66943a882fe0024c297e70162da12102_1440w.webp)
+
+
+
+
+
+从这里也可以看出在没有指定Order的情况下，先执行ApplicationRunner，然后在执行CommandLineRunner。
+
+
+
+**CommandLineRunner与@PostConstruct区别**
+
+> 在一个类内，如果有构造器（Constructor ），有@PostConstruct，还有@Autowired，他们的先后执行顺序为Constructor >> @Autowired >> @PostConstruct。
+
+> 因为一个有声明注解的类文件（必须有声明，这样在项目初始化时候才会注入），在项目启动后，会对对象进行依赖注入，而初始化的动作会依赖于对象，所以假象上看，也类似于项目启动就会执行的操作，因此，我们也可以通过这样的形式，对数据进行初始化。
+
+
 
 
 

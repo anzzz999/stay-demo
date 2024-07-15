@@ -5,6 +5,8 @@ package designPatterns.singleton;
  */
 public class Singleton3 {
 
+    private Singleton3(){}
+
     //使用volatile关键字防止重排序（有序性）和保证可见性，因为 new Instance()是一个非原子操作，可能创建一个不完整的实例
     private static volatile Singleton3 instance;
 
@@ -20,5 +22,10 @@ public class Singleton3 {
             }
         }
         return instance;
+    }
+
+    public static void main(String[] args) {
+        Singleton3 singleton3 = Singleton3.getInstance();
+        System.out.println(singleton3);
     }
 }

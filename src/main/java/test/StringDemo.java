@@ -1,13 +1,6 @@
 package test;
 
-import cn.hutool.core.util.StrUtil;
-import com.sun.xml.internal.bind.v2.runtime.reflect.opt.Const;
 import org.junit.jupiter.api.Test;
-
-import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.stream.Collectors;
 
 public class StringDemo {
     public static void main(String[] args) {

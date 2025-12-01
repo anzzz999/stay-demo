@@ -79,6 +79,12 @@
             <version>4.0.0</version>
         </dependency>
 
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-controls</artifactId>
+                <version>17.0.1</version> <!-- 选择适合的版本 -->
+            </dependency>
+
     </dependencies>
     <build>
         <plugins>
@@ -86,8 +92,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>8</source>
-                    <target>8</target>
+                    <source>17</source>
+                    <target>17</target>
                 </configuration>
             </plugin>
         </plugins>
